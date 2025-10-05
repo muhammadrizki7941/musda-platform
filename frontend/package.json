@@ -58,7 +58,7 @@
       "devDependencies": {
             "@types/node": "^20.10.0",
             "@vitejs/plugin-react": "4.3.3",
-            "vite": "6.3.5",
+            "vite": "5.4.10",
             "rollup": "4.22.4"
       },
       "scripts": {
