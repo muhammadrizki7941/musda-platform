@@ -15,7 +15,10 @@
     "migrate:rollback": "knex migrate:rollback",
     "migrate:fresh": "knex migrate:rollback --all && knex migrate:latest",
     "db:seed": "knex seed:run",
-    "db:fresh": "npm run migrate:fresh && npm run db:seed"
+    "db:fresh": "npm run migrate:fresh && npm run db:seed",
+    "sql:migrate": "node scripts/run-sql-migrations.js --apply",
+    "sql:migrate:dry": "node scripts/run-sql-migrations.js",
+    "env:print": "node scripts/print-env.js"
   },
   "dependencies": {
     "axios": "^1.12.2",
@@ -33,10 +36,11 @@
     "nodemailer": "^7.0.6",
     "pdfkit": "^0.17.2",
     "qrcode": "^1.5.4",
+  "multer": "^1.4.5-lts.1",
     "react-slick": "^0.31.0",
     "sanitize-html": "^2.17.0",
-  "slick-carousel": "^1.8.1",
-  "sharp": "^0.33.3"
+    "slick-carousel": "^1.8.1",
+    "sharp": "^0.33.3"
   },
   "devDependencies": {
     "sequelize-cli": "^6.6.3"
