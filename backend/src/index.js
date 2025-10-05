@@ -186,12 +186,14 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 app.use(notFound);
 app.use(errorHandler);
 
-// For Vercel serverless deployment
-if (process.env.NODE_ENV !== 'production') {
+// Start server normally unless we're in a pure serverless (Vercel) function context
+// If deploying to Railway / Render / VPS => NODE_ENV=production and no VERCEL env => still listen
+if (!process.env.VERCEL) {
   app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`[BOOT] MUSDA backend listening on :${port} (env=${process.env.NODE_ENV || 'development'})`);
   });
+} else {
+  console.log('[BOOT] Detected Vercel environment, exporting handler without app.listen');
 }
 
-// Export for Vercel
-module.exports = app;
+module.exports = app; // keep export for serverless compatibility
