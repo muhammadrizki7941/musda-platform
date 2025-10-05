@@ -1,6 +1,7 @@
 
   import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
+  // Switched from '@vitejs/plugin-react-swc' to '@vitejs/plugin-react' to avoid native @swc/core binding issues on Netlify
+  import react from '@vitejs/plugin-react';
   import path from 'path';
 
   export default defineConfig({
