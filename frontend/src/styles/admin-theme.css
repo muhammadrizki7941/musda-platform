@@ -1,0 +1,26 @@
+/* Admin Dark Theme Fallback */
+html.dark, body.dark {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+body {
+  background-color: #0f172a; /* Fallback if class missing briefly */
+  color: #e2e8f0;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #1e293b; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Panel / card tweaks (non Tailwind surfaces) */
+.admin-panel, .admin-card, .sh-dashboard-wrapper {
+  background: rgba(15,23,42,0.9);
+  color: #f8fafc;
+}
+
+/* Force any stray light backgrounds to dark */
+body :where(.bg-white) { background-color: #1e293b !important; }
+body :where(.text-black) { color: #f1f5f9 !important; }

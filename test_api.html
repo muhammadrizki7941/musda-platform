@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - MUSDA</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .loading { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 API Testing - MUSDA Localhost</h1>
+    
+    <div class="test-section">
+        <h3>Environment Detection</h3>
+        <p><strong>Current URL:</strong> <span id="currentUrl"></span></p>
+        <p><strong>Detected Environment:</strong> <span id="environment"></span></p>
+        <p><strong>API Base URL:</strong> <span id="apiBaseUrl"></span></p>
+    </div>
+
+    <div class="test-section" id="healthTest">
+        <h3>Test 1: Health Check</h3>
+        <button onclick="testHealth()">🩺 Test Health Endpoint</button>
+        <div id="healthResult"></div>
+    </div>
+
+    <div class="test-section" id="sponsorsTest">
+        <h3>Test 2: Sponsors API</h3>
+        <button onclick="testSponsors()">🏢 Test Sponsors Endpoint</button>
+        <div id="sponsorsResult"></div>
+    </div>
+
+    <div class="test-section" id="agendasTest">
+        <h3>Test 3: Agendas API</h3>
+        <button onclick="testAgendas()">📅 Test Agendas Endpoint</button>
+        <div id="agendasResult"></div>
+    </div>
+
+    <div class="test-section" id="sphTest">
+        <h3>Test 4: SPH Participants Count API</h3>
+        <button onclick="testSphSettings()">👥 Test SPH Participants Count</button>
+        <div id="sphResult"></div>
+    </div>
+
+    <div class="test-section" id="posterTest">
+        <h3>Test 5: Poster API</h3>
+        <button onclick="testPosters()">🖼️ Test Poster Endpoint</button>
+        <div id="posterResult"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_CONFIG = {
+            LOCAL_PHP: 'http://localhost/MUSDA/backend/src/api.php',
+            LOCAL_NODE: 'http://localhost:3001/api'
+        };
+
+        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const USE_NODE_BACKEND = true; // Set to true to test Node.js, false for PHP
+
+        function getApiUrl(endpoint) {
+            if (isDevelopment) {
+                return USE_NODE_BACKEND 
+                    ? `${API_CONFIG.LOCAL_NODE}${endpoint}`
+                    : `${API_CONFIG.LOCAL_PHP}${endpoint}`;
+            }
+            return `/api${endpoint}`;
+        }
+
+        // Initialize page
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('environment').textContent = isDevelopment ? 'Development (localhost)' : 'Production';
+        document.getElementById('apiBaseUrl').textContent = USE_NODE_BACKEND ? API_CONFIG.LOCAL_NODE : API_CONFIG.LOCAL_PHP;
+
+        async function testApi(endpoint, resultElementId, testName) {
+            const resultElement = document.getElementById(resultElementId);
+            resultElement.innerHTML = '<p class="loading">🔄 Testing...</p>';
+            
+            try {
+                console.log(`🧪 Testing ${testName}: ${getApiUrl(endpoint)}`);
+                
+                const response = await fetch(getApiUrl(endpoint));
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultElement.innerHTML = `
+                        <p class="success">✅ ${testName} Success!</p>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Response:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultElement.innerHTML = `
+                        <p class="error">❌ ${testName} Failed</p>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Error:</strong></p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultElement.innerHTML = `
+                    <p class="error">💥 ${testName} Error</p>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+                console.error(`❌ ${testName} Error:`, error);
+            }
+        }
+
+        function testHealth() {
+            testApi('/health', 'healthResult', 'Health Check');
+        }
+
+        function testSponsors() {
+            testApi('/sponsors', 'sponsorsResult', 'Sponsors API');
+        }
+
+        function testAgendas() {
+            testApi('/agendas', 'agendasResult', 'Agendas API');
+        }
+
+        function testSphSettings() {
+            testApi('/sph-participants/count', 'sphResult', 'SPH Participants Count');
+        }
+
+        function testPosters() {
+            testApi('/poster/active', 'posterResult', 'Poster API');
+        }
+
+        // Auto-run health check
+        setTimeout(() => {
+            testHealth();
+        }, 1000);
+    </script>
+</body>
+</html>

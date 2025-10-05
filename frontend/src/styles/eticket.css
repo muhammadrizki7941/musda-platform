@@ -1,0 +1,35 @@
+/* eticket.css - khusus style e-ticket yang kompatibel html2canvas */
+.eticket-container {
+  background: #f3f4f6;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  padding: 32px;
+  width: 400px;
+  font-family: 'Inter', Arial, sans-serif;
+}
+.eticket-header {
+  color: #374151;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.eticket-info {
+  color: #111827;
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+.eticket-qr {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+.eticket-footer {
+  color: #6b7280;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 24px;
+}
+.eticket-highlight {
+  color: #f59e42;
+  font-weight: 600;
+}
