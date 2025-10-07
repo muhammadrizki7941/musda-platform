@@ -1,39 +1,53 @@
-// API Configuration for Development
+// Central API configuration (development + production)
 const API_CONFIG = {
-  // Local development (XAMPP/Laragon)
   LOCAL_NODE: 'http://localhost:3001/api',
-  LOCAL_PHP: 'http://localhost/MUSDA/backend/src/api.php',
-  
-  // Production (will be set later)
-  PRODUCTION: '/api'
+  LOCAL_PHP: 'http://localhost/MUSDA/backend/src/api.php'
 };
 
-// Determine current environment and backend type
+// Environment flags
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const USE_NODE_BACKEND = true; // If false it will use LOCAL_PHP path
 
-// For now, select backend for localhost development
-export const API_BASE_URL = isDevelopment
-  ? (true ? API_CONFIG.LOCAL_NODE : API_CONFIG.LOCAL_PHP)
-  : API_CONFIG.PRODUCTION;
+// Read Vite-provided environment variables (during build they are statically injected)
+const viteEnv: any = (import.meta as any).env || {};
+if (viteEnv.VITE_API_BASE_URL && !viteEnv.VITE_API_BASE) {
+  // Soft warning at build/runtime (may appear multiple times in dev)
+  console.warn('[api.ts] Deprecated VITE_API_BASE_URL detected. Please rename to VITE_API_BASE.');
+}
+const ENV_API_BASE = (viteEnv.VITE_API_BASE || '').trim();
 
-// Backend type selector for development
-const USE_NODE_BACKEND = true; // Set to true to use Node.js (port 3001), false to use PHP
+// Dynamic production base resolver (evaluated at call time)
+function resolveProdBase() {
+  let rb = '';
+  try { rb = (window as any).__API_BASE__ || ''; } catch(_) {}
+  if (!rb && ENV_API_BASE) rb = ENV_API_BASE;
+  if (!rb && typeof location !== 'undefined' && location.hostname.includes('netlify.app')) {
+    // final guard fallback
+    rb = 'https://himperra2-production.up.railway.app';
+  }
+  return rb ? rb.replace(/\/$/, '') + '/api' : '/api';
+}
 
-// Export file base URL (where /uploads is served)
+export function currentApiBase() {
+  if (isDevelopment) {
+    return USE_NODE_BACKEND ? API_CONFIG.LOCAL_NODE : API_CONFIG.LOCAL_PHP;
+  }
+  return resolveProdBase();
+}
+
+// Backward compatibility constant (may become stale, prefer currentApiBase())
+export const API_BASE_URL = currentApiBase();
+
+// File base (for uploaded files). If ENV_API_BASE provided, strip /api if appended automatically above.
 export const FILE_BASE_URL = isDevelopment
   ? (USE_NODE_BACKEND ? 'http://localhost:3001' : 'http://localhost/MUSDA')
-  : '';
+  : (ENV_API_BASE ? ENV_API_BASE.replace(/\/$/, '') : '');
 
 // NOTE: keep in sync with FILE_BASE_URL above
 
 // Helper function to get the correct API URL
 export function getApiUrl(endpoint: string): string {
-  if (isDevelopment) {
-    return USE_NODE_BACKEND 
-      ? `${API_CONFIG.LOCAL_NODE}${endpoint}`
-      : `${API_CONFIG.LOCAL_PHP}${endpoint}`;
-  }
-  return `${API_CONFIG.PRODUCTION}${endpoint}`;
+  return `${currentApiBase()}${endpoint}`;
 }
 
 // Helper function to make API calls
@@ -50,7 +64,7 @@ export async function apiCall(endpoint: string, options: RequestInit = {}) {
   };
 
   try {
-    console.log(`🌐 API Call: ${options.method || 'GET'} ${url}`);
+  console.log(`🌐 API Call: ${options.method || 'GET'} ${url}`);
     
     const response = await fetch(url, defaultOptions);
     let data: any = null;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl, getFileUrl } from '../config/api';
+import { getApiUrl, getFileUrl, FILE_BASE_URL } from '../config/api';
 import { motion } from 'motion/react';
 
 type Sponsor = {
@@ -11,7 +11,8 @@ type Sponsor = {
   is_active?: boolean;
 };
 
-const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || '';
+// Use unified FILE_BASE_URL (derived from VITE_API_BASE) instead of deprecated VITE_API_BASE_URL
+const BASE = FILE_BASE_URL || (import.meta as any).env.VITE_API_BASE || '';
 
 export function SponsoredBySection() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
@@ -133,8 +134,8 @@ export function SponsoredBySection() {
                         sponsor.logo_path?.startsWith('http')
                           ? sponsor.logo_path
                           : sponsor.logo_path?.startsWith('/uploads')
-                            ? `${API_BASE_URL}${sponsor.logo_path}`
-                            : `${API_BASE_URL}/uploads/sponsor-logos/${sponsor.logo_path?.replace(/^.*[\\\/]/, '')}`
+                            ? `${BASE}${sponsor.logo_path}`
+                            : `${BASE}/uploads/sponsor-logos/${sponsor.logo_path?.replace(/^.*[\\\/]/, '')}`
                       }
                       alt={`${sponsor.name} logo`}
                       className="max-w-full max-h-full object-contain filter drop-shadow-lg group-hover:drop-shadow-xl transition-all duration-300"
