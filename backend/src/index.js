@@ -1,4 +1,9 @@
 require('dotenv').config();
+// Prefer IPv4 resolution first to avoid IPv6-only connect issues inside container
+try {
+  const dns = require('dns');
+  if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
+} catch(_) { /* ignore */ }
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -10,9 +15,25 @@ console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_NAME:', process.env.DB_NAME);
 console.log('PORT:', process.env.PORT);
 console.log('NODE_ENV:', process.env.NODE_ENV);
+// Extra diagnostics for production fallback (Railway MYSQL* vars)
+console.log('MYSQLHOST:', process.env.MYSQLHOST);
+console.log('MYSQLUSER:', process.env.MYSQLUSER);
+console.log('MYSQLDATABASE:', process.env.MYSQLDATABASE);
 
 const app = express();
-const port = process.env.PORT || 3001;
+
+// Derive safe HTTP port: avoid accidentally binding to 3306 (MySQL) when PORT env polluted by DB vars
+function resolveHttpPort() {
+  const raw = process.env.PORT;
+  const num = raw ? parseInt(raw, 10) : null;
+  if (num && num !== 3306) return num; // normal case
+  const fallback = parseInt(process.env.APP_PORT || '8080', 10);
+  if (num === 3306) {
+    console.warn('[PORT] Detected PORT=3306 (likely MySQL port). Overriding to fallback', fallback);
+  }
+  return fallback;
+}
+const port = resolveHttpPort();
 // Simple request logger
 app.use((req, res, next) => {
   const start = Date.now();
@@ -23,7 +44,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS configuration (env-driven with sensible dev defaults)
+// CORS configuration (env-driven with sensible dev defaults + Netlify preview support)
 const allowedOrigins = new Set([
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3000',
@@ -32,13 +53,38 @@ const allowedOrigins = new Set([
   'http://localhost:5175',
   'http://localhost'
 ]);
+
+// Support comma-separated FRONTEND_ORIGINS for additional explicit origins
+const extraOriginsRaw = (process.env.FRONTEND_ORIGINS || '').split(',')
+  .map(s => s.trim()).filter(Boolean);
+extraOriginsRaw.forEach(o => {
+  if (/^https?:\/\//i.test(o)) allowedOrigins.add(o.replace(/\/$/, '')); // normalize
+});
+
+// Pattern based whitelist (preview subdomains etc.)
+const allowedOriginPatterns = [
+  // Netlify production + preview subdomains: <hash>--himperra-lampung.netlify.app
+  /^https?:\/\/([a-z0-9-]+--)?himperra-lampung\.netlify\.app$/i,
+  // Allow optional custom wildcard domains via FRONTEND_ORIGINS tokens like *.example.com
+  ...extraOriginsRaw.filter(o => o.startsWith('*.')).map(glob => {
+    const base = glob.slice(2).replace(/[-/\\^$+?.()|[\]{}]/g, r => `\\${r}`);
+    return new RegExp(`^https?:\\/\\/([a-z0-9-]+\\.)?${base}$`, 'i');
+  })
+];
+
 app.use(cors({
   origin: (origin, cb) => {
-    // allow same-origin or tools with no origin
-    if (!origin) return cb(null, true);
-    return allowedOrigins.has(origin) ? cb(null, true) : cb(new Error('CORS not allowed'), false);
+    if (!origin) return cb(null, true); // same-origin / server-to-server
+    const normalized = origin.replace(/\/$/, '');
+    if (allowedOrigins.has(normalized)) return cb(null, true);
+    if (allowedOriginPatterns.some(re => re.test(normalized))) return cb(null, true);
+    console.warn('[CORS] Blocked origin:', origin);
+    return cb(new Error('CORS not allowed'), false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','Accept','Origin'],
+  exposedHeaders: ['Content-Disposition']
 }));
 app.use(bodyParser.json());
 
@@ -174,11 +220,22 @@ app.use('/uploads', express.static(path.join(__dirname, '../../uploads'), {
 
 // Health check endpoint
 app.get('/api', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'MUSDA II API running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Explicit /api/health endpoint for platform health checks
+app.get('/api/health', async (req, res) => {
+  try {
+    const { dbPromise } = require('./utils/db');
+    await dbPromise.query('SELECT 1');
+    res.json({ status: 'ok', db: 'up', time: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ status: 'error', db: 'down', error: e.message });
+  }
 });
 
 // Centralized error/404 handlers
@@ -186,14 +243,43 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 app.use(notFound);
 app.use(errorHandler);
 
-// Start server normally unless we're in a pure serverless (Vercel) function context
-// If deploying to Railway / Render / VPS => NODE_ENV=production and no VERCEL env => still listen
-if (!process.env.VERCEL) {
-  app.listen(port, () => {
-    console.log(`[BOOT] MUSDA backend listening on :${port} (env=${process.env.NODE_ENV || 'development'})`);
-  });
-} else {
-  console.log('[BOOT] Detected Vercel environment, exporting handler without app.listen');
+async function bootstrap() {
+  try {
+    console.log(`[BOOT] MIGRATE_ON_START flag value: ${process.env.MIGRATE_ON_START}`);
+    if (process.env.MIGRATE_ON_START === '1') {
+      const delayMs = parseInt(process.env.MIGRATION_START_DELAY_MS || '0', 10);
+      if (delayMs > 0) {
+        console.log(`[BOOT] MIGRATE_ON_START=1 delaying migration start for ${delayMs}ms to allow DB warm-up...`);
+        await new Promise(r=>setTimeout(r, delayMs));
+      } else {
+        console.log('[BOOT] MIGRATE_ON_START=1 detected. Running migrations before server start...');
+      }
+      try {
+        const { runMigrations } = require('../scripts/run-sql-migrations');
+        await runMigrations({ apply: true });
+        console.log('[BOOT] Migrations completed.');
+      } catch (e) {
+        console.error('[BOOT] Migration phase failed:', e.message);
+        if (process.env.MIGRATION_STRICT === '1') {
+          console.error('[BOOT] MIGRATION_STRICT=1 set. Aborting startup.');
+          process.exit(1);
+        }
+      }
+    } else {
+      console.log('[BOOT] MIGRATE_ON_START not set to 1. Skipping automatic migration phase.');
+    }
+    if (!process.env.VERCEL) {
+      app.listen(port, () => {
+        console.log(`[BOOT] MUSDA backend listening on :${port} (env=${process.env.NODE_ENV || 'development'})`);
+      });
+    } else {
+      console.log('[BOOT] Detected Vercel environment, exporting handler without app.listen');
+    }
+  } catch (err) {
+    console.error('[BOOT] Fatal startup error:', err);
+    process.exit(1);
+  }
 }
+bootstrap();
 
 module.exports = app; // keep export for serverless compatibility
