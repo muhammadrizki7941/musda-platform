@@ -350,11 +350,18 @@ router.put('/:id/accept-payment', authMiddleware, async (req, res) => {
     await SPHParticipantModel.updateQRCode(participantId, publicTemplatePath);
 
     // Send e-ticket email dengan simple QR code (gunakan absolute path untuk attachment)
-    await sendETicketEmail(updatedParticipant, absSimplePath);
+    // Kirim email e-ticket di background agar response cepat
+    setImmediate(async () => {
+      try {
+        await sendETicketEmail(updatedParticipant, absSimplePath);
+      } catch (err) {
+        console.error('Error sending e-ticket email (async):', err);
+      }
+    });
 
     res.json({
       success: true,
-      message: 'Payment accepted and e-ticket sent'
+      message: 'Payment accepted, e-ticket akan dikirim ke email Anda dalam beberapa menit.'
     });
   } catch (error) {
     console.error('Error accepting payment:', error);
@@ -438,11 +445,18 @@ router.post('/:id/send-ticket', authMiddleware, async (req, res) => {
     });
 
     // Resend e-ticket email with simple QR image
-    await sendETicketEmail(participant, absSimplePath);
+    // Kirim email e-ticket di background agar response cepat
+    setImmediate(async () => {
+      try {
+        await sendETicketEmail(participant, absSimplePath);
+      } catch (err) {
+        console.error('Error sending e-ticket email (async):', err);
+      }
+    });
 
     res.json({
       success: true,
-      message: 'E-ticket sent successfully'
+      message: 'Permintaan diterima, e-ticket akan dikirim ke email Anda dalam beberapa menit.'
     });
   } catch (error) {
     console.error('Error sending ticket:', error);
