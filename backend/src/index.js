@@ -146,9 +146,11 @@ const reportsRoutes = require('./routes/reportsRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const locationRoutes = require('./routes/locationRoutes');
 const newsRoutes = require('./routes/newsRoutes');
+const emailHealthRoutes = require('./routes/emailHealthRoutes');
 
 // Register routes
 app.use('/api/auth', authRoutes);
+app.use('/api/email', emailHealthRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/panitia', panitiaRoutes);
 app.use('/api', guestRoutes);
@@ -267,6 +269,38 @@ async function bootstrap() {
       }
     } else {
       console.log('[BOOT] MIGRATE_ON_START not set to 1. Skipping automatic migration phase.');
+    }
+
+    // Fallback: ensure guests table exists (some deploys missed new migration 13)
+    try {
+      const { dbPromise } = require('./utils/db');
+      const [rows] = await dbPromise.query("SHOW TABLES LIKE 'guests'");
+      if (!rows || rows.length === 0) {
+        console.warn('[BOOT][FALLBACK] guests table missing. Creating fallback schema now...');
+        await dbPromise.query(`CREATE TABLE IF NOT EXISTS guests (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          nama VARCHAR(150) NOT NULL,
+          email VARCHAR(150) NOT NULL UNIQUE,
+          whatsapp VARCHAR(30) NOT NULL,
+          asal_instansi VARCHAR(150) NOT NULL,
+          kota VARCHAR(100) NULL,
+            kategori VARCHAR(100) NULL,
+          status_kehadiran ENUM('pending','hadir') DEFAULT 'pending',
+          qr_code VARCHAR(191) NULL,
+          verification_token VARCHAR(191) NULL,
+          is_verified BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_guests_whatsapp (whatsapp),
+          INDEX idx_guests_status (status_kehadiran),
+          INDEX idx_guests_token (verification_token)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+        console.log('[BOOT][FALLBACK] guests table created.');
+      } else {
+        console.log('[BOOT] guests table present.');
+      }
+    } catch (e) {
+      console.error('[BOOT][FALLBACK] Failed ensuring guests table:', e.message);
     }
     if (!process.env.VERCEL) {
       app.listen(port, () => {

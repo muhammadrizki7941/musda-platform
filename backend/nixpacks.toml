@@ -1,0 +1,25 @@
+# Nixpacks configuration to ensure Railway builds ONLY the backend service
+# and skips unintended frontend build steps from the monorepo root.
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+# Use npm ci if lockfile present; fallback to npm install (some older npm issues in Railway images)
+cmds = [
+	"if [ -f package-lock.json ]; then npm ci || npm install; else npm install; fi"
+]
+
+[phases.build]
+# No build step needed for plain Express API
+cmds = ["echo 'No build phase for backend'" ]
+
+[start]
+cmd = "npm start"
+
+[variables]
+# These can also be set in the Railway dashboard; here just documenting defaults.
+PORT = "3001"
+NODE_ENV = "production"
+MIGRATION_DB_CONNECT_ATTEMPTS = "15"
+MIGRATION_DB_CONNECT_DELAY_MS = "3000"

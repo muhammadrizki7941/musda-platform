@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { sendTicketEmail } = require('../controllers/emailController');
+const { sendTestEmail } = require('../controllers/emailController');
 const { db, dbPromise } = require('../utils/db');
 
 // GET /api/participants - List all participants (from guests table)
@@ -224,52 +225,68 @@ router.post('/', async (req, res) => {
 
 // POST /api/participants/:id/resend-ticket - Resend e-ticket
 router.post('/:id/resend-ticket', async (req, res) => {
+  const started = Date.now();
   try {
     const { id } = req.params;
     console.log(`POST /api/participants/${id}/resend-ticket - Resending e-ticket`);
-    
+
     const query = `
-      SELECT id, nama, email, whatsapp, qr_code, verification_token
+      SELECT id, nama, email, whatsapp, asal_instansi, kota, kategori, qr_code, verification_token, created_at
       FROM guests 
       WHERE id = ?
     `;
-    
+
     const [results] = await dbPromise.query(query, [id]);
-    
     if (results.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
     }
-    
+
     const participant = results[0];
-    
+    console.log('[RESEND] Participant row:', {
+      id: participant.id,
+      email: participant.email,
+      hasQr: !!participant.qr_code,
+      hasToken: !!participant.verification_token
+    });
+
     try {
-      // Send real email using centralized email controller
       const result = await sendTicketEmail(participant.id, {
         id: participant.id,
         nama: participant.nama,
         email: participant.email,
         whatsapp: participant.whatsapp,
         instansi: participant.asal_instansi,
+        asal_instansi: participant.asal_instansi,
+        kota: participant.kota,
+        kategori: participant.kategori,
+        qr_code: participant.qr_code,
+        verification_token: participant.verification_token,
+        created_at: participant.created_at,
         booking_date: new Date().toISOString().slice(0, 10)
       });
-      
+
       return res.json({
         message: 'E-ticket berhasil dikirim ulang',
         email: participant.email,
-        meta: result
+        meta: result,
+        duration_ms: Date.now() - started
       });
     } catch (qrError) {
-      console.error('Error sending e-ticket:', qrError);
+      console.error('[RESEND] Error sending e-ticket:', qrError);
       return res.status(500).json({ error: 'Gagal mengirim e-ticket', details: qrError.message });
     }
-    
   } catch (error) {
-    console.error('Error in resend ticket:', error);
-    res.status(500).json({ 
-      error: 'Internal server error', 
-      details: error.message 
+    console.error('[RESEND] Error in resend ticket root:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
     });
   }
+});
+
+// Email provider health/test (quick manual trigger)
+router.get('/email/test', async (req, res) => {
+  return require('../controllers/emailController').sendTestEmail(req, res);
 });
 
 // POST /api/participants/scan-qr - Scan QR for attendance

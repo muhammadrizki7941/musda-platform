@@ -1,0 +1,6 @@
+-- 04_create_countdown_table.sql
+CREATE TABLE IF NOT EXISTS countdown (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  target_date DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

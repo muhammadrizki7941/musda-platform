@@ -173,6 +173,14 @@ const posterController = {
                 });
             }
 
+            // Enforce DB column length (VARCHAR(500)) to avoid 500 errors
+            if (finalImageUrl.length > 500) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'URL gambar terlalu panjang (maks 500 karakter). Gunakan upload file atau perpendek URL.'
+                });
+            }
+
             const posterData = {
                 image_url: finalImageUrl,
                 title,
@@ -237,6 +245,13 @@ const posterController = {
                         console.log(`🗑️ Deleted old file: ${oldFilePath}`);
                     }
                 }
+            }
+
+            if (finalImageUrl && finalImageUrl.length > 500) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'URL gambar terlalu panjang (maks 500 karakter). Gunakan upload file atau perpendek URL.'
+                });
             }
 
             const posterData = {

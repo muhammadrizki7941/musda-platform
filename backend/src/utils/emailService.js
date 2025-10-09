@@ -3,7 +3,8 @@ const fs = require('fs');
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
+    // Fix: should be createTransport (not createTransporter)
+    this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: process.env.SMTP_PORT || 587,
       secure: false,
@@ -12,10 +13,38 @@ class EmailService {
         pass: process.env.SMTP_PASS
       }
     });
+    if (process.env.DEBUG_EMAIL === '1') {
+      console.log('[EMAIL] Transporter initialized with host=%s port=%s user=%s', process.env.SMTP_HOST, process.env.SMTP_PORT, process.env.SMTP_USER);
+      this.transporter.verify().then(()=>{
+        console.log('[EMAIL] Transporter verification success');
+      }).catch(err=>{
+        console.error('[EMAIL] Transporter verification failed:', err.message);
+      });
+    }
   }
 
   async sendTicketEmail(participant, ticketFile) {
     try {
+      // Generate QR code PNG file
+      const QRCode = require('qrcode');
+      const path = require('path');
+      const fs = require('fs');
+      const qrData = JSON.stringify({
+        participantId: participant.id,
+        nama: participant.nama,
+        email: participant.email,
+        eventCode: 'SEKOLAH-PROPERTI-2025'
+      });
+      const qrPngPath = path.join(__dirname, '../../uploads/tickets', `qr-${participant.id}-${Date.now()}.png`);
+      await QRCode.toFile(qrPngPath, qrData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
       const mailOptions = {
         from: {
           name: 'HIMPERRA Lampung',
@@ -29,12 +58,21 @@ class EmailService {
             filename: `E-Tiket-${participant.nama.replace(/\s+/g, '-')}.pdf`,
             path: ticketFile.filepath,
             contentType: 'application/pdf'
+          },
+          {
+            filename: `QR-Code-${participant.nama.replace(/\s+/g, '-')}.png`,
+            path: qrPngPath,
+            contentType: 'image/png'
           }
         ]
       };
 
       const result = await this.transporter.sendMail(mailOptions);
       console.log('Email sent successfully:', result.messageId);
+      // Optional: Clean up QR PNG file after sending
+      setTimeout(() => {
+        try { if (fs.existsSync(qrPngPath)) fs.unlinkSync(qrPngPath); } catch {}
+      }, 10000);
       return { success: true, messageId: result.messageId };
 
     } catch (error) {

@@ -7,6 +7,10 @@ function authMiddleware(req, res, next) {
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET || 'musda_secret');
     req.user = user;
+    // Optional debug (enable by setting DEBUG_AUTH=1 in env)
+    if (process.env.DEBUG_AUTH === '1') {
+      console.log('[authMiddleware] Decoded user:', user);
+    }
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Token tidak valid' });
@@ -15,7 +19,8 @@ function authMiddleware(req, res, next) {
 
 // Middleware: hanya admin
 function adminMiddleware(req, res, next) {
-  if (req.user?.role !== 'admin') {
+  // Allow both 'admin' and elevated 'super_admin'
+  if (!['admin', 'super_admin'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Akses hanya untuk admin' });
   }
   next();
@@ -23,7 +28,8 @@ function adminMiddleware(req, res, next) {
 
 // Middleware: admin atau panitia
 function panitiaOrAdminMiddleware(req, res, next) {
-  if (req.user?.role !== 'admin' && req.user?.role !== 'panitia') {
+  // Permit admin, super_admin, or panitia
+  if (!['admin', 'super_admin', 'panitia'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Akses hanya untuk admin/panitia' });
   }
   next();

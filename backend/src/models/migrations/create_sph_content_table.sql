@@ -13,46 +13,48 @@ CREATE TABLE IF NOT EXISTS sph_content (
 );
 
 -- Insert default content for SPH
-INSERT INTO sph_content (section, content_key, content_value, content_type, description) VALUES
+-- Note: Some environments previously created sph_content without the description column.
+-- To stay compatible, we only insert into existing base columns. If description exists, it will accept NULL default.
+INSERT INTO sph_content (section, content_key, content_value, content_type) VALUES
 -- Hero Section
-('hero', 'title', 'Sekolah Properti Himperra', 'text', 'Judul utama halaman'),
-('hero', 'subtitle', 'Membangun Masa Depan Properti Indonesia', 'text', 'Subjudul halaman'),
-('hero', 'description', 'Program pendidikan terdepan untuk mengembangkan pengetahuan dan keterampilan di bidang properti dengan standar internasional.', 'text', 'Deskripsi hero section'),
-('hero', 'background_image', '/images/sph-hero-bg.jpg', 'image', 'Background image hero section'),
-('hero', 'cta_text', 'Daftar Sekarang', 'text', 'Teks tombol call-to-action'),
+('hero', 'title', 'Sekolah Properti Himperra', 'text'),
+('hero', 'subtitle', 'Membangun Masa Depan Properti Indonesia', 'text'),
+('hero', 'description', 'Program pendidikan terdepan untuk mengembangkan pengetahuan dan keterampilan di bidang properti dengan standar internasional.', 'text'),
+('hero', 'background_image', '/images/sph-hero-bg.jpg', 'image'),
+('hero', 'cta_text', 'Daftar Sekarang', 'text'),
 
 -- About Section
-('about', 'title', 'Tentang Sekolah Properti', 'text', 'Judul section tentang'),
-('about', 'description', 'Sekolah Properti Himperra adalah institusi pendidikan yang fokus pada pengembangan SDM di bidang properti. Kami menyediakan kurikulum yang komprehensif dan up-to-date dengan perkembangan industri properti.', 'html', 'Deskripsi lengkap tentang SPH'),
-('about', 'vision', 'Menjadi pusat pendidikan properti terdepan di Indonesia', 'text', 'Visi SPH'),
-('about', 'mission', 'Menghasilkan profesional properti yang kompeten dan berintegritas', 'text', 'Misi SPH'),
+('about', 'title', 'Tentang Sekolah Properti', 'text'),
+('about', 'description', 'Sekolah Properti Himperra adalah institusi pendidikan yang fokus pada pengembangan SDM di bidang properti. Kami menyediakan kurikulum yang komprehensif dan up-to-date dengan perkembangan industri properti.', 'html'),
+('about', 'vision', 'Menjadi pusat pendidikan properti terdepan di Indonesia', 'text'),
+('about', 'mission', 'Menghasilkan profesional properti yang kompeten dan berintegritas', 'text'),
 
 -- Features Section
-('features', 'title', 'Keunggulan Program', 'text', 'Judul section keunggulan'),
-('features', 'feature_1_title', 'Kurikulum Terkini', 'text', 'Judul fitur 1'),
-('features', 'feature_1_desc', 'Materi pembelajaran yang selalu update dengan trend industri', 'text', 'Deskripsi fitur 1'),
-('features', 'feature_2_title', 'Instruktur Berpengalaman', 'text', 'Judul fitur 2'),
-('features', 'feature_2_desc', 'Diajar oleh praktisi dan akademisi berpengalaman', 'text', 'Deskripsi fitur 2'),
-('features', 'feature_3_title', 'Sertifikasi Resmi', 'text', 'Judul fitur 3'),
-('features', 'feature_3_desc', 'Mendapat sertifikat yang diakui industri', 'text', 'Deskripsi fitur 3'),
+('features', 'title', 'Keunggulan Program', 'text'),
+('features', 'feature_1_title', 'Kurikulum Terkini', 'text'),
+('features', 'feature_1_desc', 'Materi pembelajaran yang selalu update dengan trend industri', 'text'),
+('features', 'feature_2_title', 'Instruktur Berpengalaman', 'text'),
+('features', 'feature_2_desc', 'Diajar oleh praktisi dan akademisi berpengalaman', 'text'),
+('features', 'feature_3_title', 'Sertifikasi Resmi', 'text'),
+('features', 'feature_3_desc', 'Mendapat sertifikat yang diakui industri', 'text'),
 
 -- Contact Section
-('contact', 'title', 'Hubungi Kami', 'text', 'Judul section kontak'),
-('contact', 'address', 'Jl. Properti No. 123, Jakarta Selatan', 'text', 'Alamat'),
-('contact', 'phone', '+62 21 1234 5678', 'text', 'Nomor telepon'),
-('contact', 'email', 'info@sekolahproperti.id', 'text', 'Email'),
-('contact', 'whatsapp', '+62 812 3456 7890', 'text', 'WhatsApp untuk kontak'),
+('contact', 'title', 'Hubungi Kami', 'text'),
+('contact', 'address', 'Jl. Properti No. 123, Jakarta Selatan', 'text'),
+('contact', 'phone', '+62 21 1234 5678', 'text'),
+('contact', 'email', 'info@sekolahproperti.id', 'text'),
+('contact', 'whatsapp', '+62 812 3456 7890', 'text'),
 
 -- Registration Section
-('registration', 'title', 'Pendaftaran', 'text', 'Judul section pendaftaran'),
-('registration', 'price', '2500000', 'number', 'Harga pendaftaran dalam Rupiah'),
-('registration', 'early_bird_price', '2000000', 'number', 'Harga early bird'),
-('registration', 'early_bird_deadline', '2025-12-31', 'text', 'Deadline early bird'),
-('registration', 'description', 'Bergabunglah dengan program Sekolah Properti dan kembangkan karier Anda di bidang properti', 'text', 'Deskripsi pendaftaran'),
+('registration', 'title', 'Pendaftaran', 'text'),
+('registration', 'price', '2500000', 'number'),
+('registration', 'early_bird_price', '2000000', 'number'),
+('registration', 'early_bird_deadline', '2025-12-31', 'text'),
+('registration', 'description', 'Bergabunglah dengan program Sekolah Properti dan kembangkan karier Anda di bidang properti', 'text'),
 
 -- Settings
-('settings', 'is_registration_open', 'true', 'boolean', 'Status pembukaan pendaftaran'),
-('settings', 'max_participants', '100', 'number', 'Maksimal peserta'),
-('settings', 'show_early_bird', 'true', 'boolean', 'Tampilkan harga early bird'),
-('settings', 'site_title', 'Sekolah Properti Himperra', 'text', 'Title website'),
-('settings', 'site_description', 'Program pendidikan properti terdepan di Indonesia', 'text', 'Meta description website');
+('settings', 'is_registration_open', 'true', 'boolean'),
+('settings', 'max_participants', '100', 'number'),
+('settings', 'show_early_bird', 'true', 'boolean'),
+('settings', 'site_title', 'Sekolah Properti Himperra', 'text'),
+('settings', 'site_description', 'Program pendidikan properti terdepan di Indonesia', 'text');

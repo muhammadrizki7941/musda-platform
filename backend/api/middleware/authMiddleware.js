@@ -13,17 +13,17 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// Middleware: hanya admin
+// Middleware: hanya admin (allow super_admin as elevated)
 function adminMiddleware(req, res, next) {
-  if (req.user?.role !== 'admin') {
+  if (!['admin','super_admin'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Akses hanya untuk admin' });
   }
   next();
 }
 
-// Middleware: admin atau panitia
+// Middleware: admin atau panitia (super_admin also allowed)
 function panitiaOrAdminMiddleware(req, res, next) {
-  if (req.user?.role !== 'admin' && req.user?.role !== 'panitia') {
+  if (!['admin','super_admin','panitia'].includes(req.user?.role)) {
     return res.status(403).json({ message: 'Akses hanya untuk admin/panitia' });
   }
   next();

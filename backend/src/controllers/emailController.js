@@ -7,25 +7,102 @@ const { logoToBase64 } = require('../utils/logoConverter');
 const path = require('path');
 const { getUploadsAbsPath } = require('../utils/paths');
 const { generateMusdaTicketPNG } = require('../utils/musdaTicketGenerator');
+const { sendEmailUnified } = require('../utils/emailProvider');
 
-// Email configuration
-let transporter = null;
+// Email configuration with multi-port fallback & retry
+let transporter = null; // primary (first port)
+let extraTransporters = []; // additional fallbacks
 
-// Only create transporter if email is enabled
-if (process.env.EMAIL_ENABLED !== 'false') {
-  transporter = nodemailer.createTransport({
+function buildTransport(port, secureExplicit) {
+  const secure = typeof secureExplicit === 'boolean' ? secureExplicit : (process.env.SMTP_SECURE === 'true' || port === 465);
+  const requireTLS = process.env.SMTP_REQUIRE_TLS !== 'false';
+  const connectionTimeout = parseInt(process.env.SMTP_CONNECTION_TIMEOUT || '10000', 10); // ms
+  const socketTimeout = parseInt(process.env.SMTP_SOCKET_TIMEOUT || '15000', 10); // ms
+  const greetingTimeout = parseInt(process.env.SMTP_GREETING_TIMEOUT || '8000', 10);
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: false,
-    requireTLS: true,
+    port,
+    secure,
+    requireTLS,
+    connectionTimeout,
+    socketTimeout,
+    greetingTimeout,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
     }
   });
-  console.log('📧 Email transporter configured');
-} else {
-  console.log('📧 Email transporter disabled - development mode');
+}
+
+function initTransports() {
+  if (process.env.EMAIL_ENABLED === 'false') {
+    console.log('📧 Email transporter disabled - development mode (EMAIL_ENABLED=false)');
+    return;
+  }
+  try {
+    const portsEnv = process.env.SMTP_PORTS || process.env.SMTP_PORT || '587,465';
+    const ports = portsEnv.split(',').map(p => parseInt(p.trim(), 10)).filter(Boolean);
+    if (ports.length === 0) ports.push(587, 465);
+    const built = ports.map(p => buildTransport(p));
+    transporter = built[0];
+    extraTransporters = built.slice(1);
+    console.log('📧 Email transports configured host=%s ports=%s user=%s', process.env.SMTP_HOST, ports.join('/'), process.env.SMTP_USER);
+    if (process.env.DEBUG_EMAIL === '1') {
+      built.forEach(t => {
+        t.verify().then(()=>{
+          console.log('[EMAIL] verify OK port=%s secure=%s', t.options.port, t.options.secure);
+        }).catch(err=>{
+          console.error('[EMAIL] verify FAIL port=%s secure=%s msg=%s', t.options.port, t.options.secure, err.message);
+        });
+      });
+    }
+  } catch (e) {
+    console.error('❌ Failed to configure email transporters:', e.message);
+  }
+}
+
+initTransports();
+
+const TRANSIENT_CODES = new Set(['ETIMEDOUT','ECONNECTION','ESOCKET','ECONNRESET','EAI_AGAIN']);
+const MAX_RETRIES = parseInt(process.env.EMAIL_RETRY_ATTEMPTS || '2', 10);
+
+async function safeSendMail(mailOptions) {
+  if (process.env.EMAIL_ENABLED === 'false') {
+    return { disabled: true };
+  }
+  const transports = [transporter, ...extraTransporters].filter(Boolean);
+  let attempt = 0;
+  let lastErr = null;
+  for (let tIndex = 0; tIndex < transports.length; tIndex++) {
+    const t = transports[tIndex];
+    attempt = 0;
+    while (attempt <= MAX_RETRIES) {
+      try {
+        if (process.env.DEBUG_EMAIL === '1') {
+          console.log('[EMAIL][TRY] port=%s attempt=%d to=%s subject="%s"', t.options.port, attempt+1, mailOptions.to, mailOptions.subject);
+        }
+        const result = await t.sendMail(mailOptions);
+        if (process.env.DEBUG_EMAIL === '1') {
+          console.log('[EMAIL][SUCCESS] port=%s messageId=%s', t.options.port, result.messageId);
+        }
+        return { success: true, transportPort: t.options.port, messageId: result.messageId };
+      } catch (err) {
+        lastErr = err;
+        const code = err.code || 'UNKNOWN';
+        const transient = TRANSIENT_CODES.has(code);
+        console.error('[EMAIL][ERROR] port=%s attempt=%d code=%s transient=%s msg=%s', t.options.port, attempt+1, code, transient, err.message);
+        if (!transient) break; // move to next transport
+        attempt++;
+        if (attempt > MAX_RETRIES) {
+          console.error('[EMAIL][GIVEUP] port=%s after %d attempts', t.options.port, MAX_RETRIES+1);
+          break; // try next transport
+        }
+        const backoff = 300 * attempt; // simple linear backoff
+        await new Promise(r => setTimeout(r, backoff));
+      }
+    }
+  }
+  throw lastErr || new Error('Unknown email send failure');
 }
 
 exports.sendTicket = async (req, res) => {
@@ -72,6 +149,32 @@ exports.sendTicket = async (req, res) => {
     const tanggalDaftar = createdAt.toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
     const headerLogoImg = logoCid ? `<img src="cid:${logoCid}" alt="MUSDA" style="height: 40px; display: block;"/>` : '';
 
+
+// Simple test send via provider (Resend or SMTP) without exposing API key
+module.exports.sendTestEmail = async (req, res) => {
+  try {
+    if (process.env.EMAIL_ENABLED === 'false') {
+      return res.status(400).json({ error: 'Email disabled', EMAIL_ENABLED: process.env.EMAIL_ENABLED });
+    }
+    const to = req.query.to || process.env.TEST_EMAIL_TO || process.env.SMTP_USER;
+    if (!to) {
+      return res.status(400).json({ error: 'Target email (to) required via ?to=' });
+    }
+    const html = '<p>Test pengiriman email provider aktif. <strong>Musda Platform</strong>.</p>';
+    const subject = 'Tes Provider Email - MUSDA';
+    const mailOptions = { from: process.env.EMAIL_FROM || process.env.SMTP_USER, to, subject, html, attachments: [] };
+    let result;
+    if (process.env.EMAIL_PROVIDER === 'resend') {
+      result = await sendEmailUnified(mailOptions);
+    } else {
+      result = await safeSendMail(mailOptions);
+    }
+    return res.json({ success: true, provider: result.provider || process.env.EMAIL_PROVIDER || 'smtp', messageId: result.id || result.messageId, to });
+  } catch (e) {
+    console.error('[EMAIL][TEST] Error:', e.message);
+    return res.status(500).json({ error: 'Failed to send test email', message: e.message });
+  }
+};
     const emailHTML = `
       <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #1f2937;">
         <div style="background: #0ea5e9; padding: 16px 24px; border-radius: 12px 12px 0 0; display:flex; align-items:center; gap:12px;">
@@ -106,7 +209,13 @@ exports.sendTicket = async (req, res) => {
     // Generate designed MUSDA PNG ticket and add as attachment
     const fileName = `musda_ticket_${guest.id || id}.png`;
     const absTicketPath = getUploadsAbsPath('tickets', fileName);
-    await generateMusdaTicketPNG(qrPayload, guest, absTicketPath);
+    let ticketBuffer = null;
+    try {
+      await generateMusdaTicketPNG(qrPayload, guest, absTicketPath);
+      ticketBuffer = fs.readFileSync(absTicketPath);
+    } catch (genErr) {
+      console.error('[EMAIL][TICKET] Failed to generate fancy ticket PNG, falling back to QR only:', genErr.message);
+    }
 
     const attachments = [
       {
@@ -115,24 +224,34 @@ exports.sendTicket = async (req, res) => {
         cid: 'qrcode@musda',
         contentType: 'image/png'
       },
-      {
+      ...(ticketBuffer ? [{
         filename: fileName,
-        content: fs.readFileSync(absTicketPath),
+        content: ticketBuffer,
         cid: 'eticket@musda',
         contentType: 'image/png'
-      }
+      }] : [])
     ];
     if (logoAttachment) attachments.push(logoAttachment);
 
-    await transporter.sendMail({
+    const mailOptions = {
       from: process.env.SMTP_USER,
       to: guest.email,
       subject: 'E-Tiket MUSDA II HIMPERRA Lampung - ' + guest.nama,
       html: emailHTML,
       attachments
-    });
-
-    console.log(`📧 E-Tiket berhasil dikirim ke ${guest.email}`);
+    };
+    if (process.env.DEBUG_EMAIL === '1') {
+      console.log('[EMAIL][SEND] to=%s subject="%s" attachments=%d', mailOptions.to, mailOptions.subject, mailOptions.attachments.length);
+    }
+    let sendResult;
+    if (process.env.EMAIL_PROVIDER === 'resend') {
+      // Convert attachments for Resend (already handled in provider abstraction)
+      sendResult = await sendEmailUnified(mailOptions);
+      console.log(`📧 E-Tiket (Resend) berhasil dikirim ke ${guest.email}`);
+    } else {
+      sendResult = await safeSendMail(mailOptions);
+      console.log(`📧 E-Tiket berhasil dikirim ke ${guest.email} via port ${sendResult.transportPort}`);
+    }
     
     res.json({ 
       success: true, 
@@ -232,7 +351,13 @@ exports.sendTicketEmail = async (guestId, guestData = null) => {
     // Generate designed MUSDA PNG ticket and add as attachment
     const fileName2 = `musda_ticket_${guest.id || guestId}.png`;
     const absTicketPath2 = getUploadsAbsPath('tickets', fileName2);
-    await generateMusdaTicketPNG(qrPayload, guest, absTicketPath2);
+    let ticketBuffer2 = null;
+    try {
+      await generateMusdaTicketPNG(qrPayload, guest, absTicketPath2);
+      ticketBuffer2 = fs.readFileSync(absTicketPath2);
+    } catch (genErr) {
+      console.error('[EMAIL][TICKET] Fallback generation failure (utility path). Proceeding without main ticket:', genErr.message);
+    }
 
     const attachments = [
       {
@@ -241,35 +366,59 @@ exports.sendTicketEmail = async (guestId, guestData = null) => {
         cid: 'qrcode@musda',
         contentType: 'image/png'
       },
-      {
+      ...(ticketBuffer2 ? [{
         filename: fileName2,
-        content: fs.readFileSync(absTicketPath2),
+        content: ticketBuffer2,
         cid: 'eticket@musda',
         contentType: 'image/png'
-      }
+      }] : [])
     ];
     if (logoAttachment) attachments.push(logoAttachment);
 
-    const result = await transporter.sendMail({
+    const mailOptions2 = {
       from: process.env.SMTP_USER,
       to: guest.email,
       subject: 'E-Tiket MUSDA II HIMPERRA Lampung - ' + guest.nama,
       html: emailHTML,
       attachments
-    });
-
-    console.log(`📧 E-Tiket berhasil dikirim ke ${guest.email}`);
+    };
+    if (process.env.DEBUG_EMAIL === '1') {
+      console.log('[EMAIL][SEND] (utility) to=%s subject="%s" attachments=%d', mailOptions2.to, mailOptions2.subject, mailOptions2.attachments.length);
+    }
+    let result;
+    if (process.env.EMAIL_PROVIDER === 'resend') {
+      result = await sendEmailUnified(mailOptions2);
+      console.log(`📧 E-Tiket (Resend) berhasil dikirim ke ${guest.email}`);
+    } else {
+      result = await safeSendMail(mailOptions2);
+      console.log(`📧 E-Tiket berhasil dikirim ke ${guest.email} via port ${result.transportPort}`);
+    }
     
     return { 
       success: true, 
       message: 'E-Tiket berhasil dikirim ke email',
       guest: guest.nama,
       email: guest.email,
-      messageId: result.messageId
+      messageId: result.messageId,
+      transportPort: result.transportPort
     };
     
   } catch (error) {
     console.error('❌ Email service error:', error.message);
+    if (process.env.DEBUG_EMAIL === '1') {
+      console.error('[EMAIL][STACK]', error.stack);
+      if (error.response) console.error('[EMAIL][SMTP RESPONSE]', error.response);
+      if (error.code) console.error('[EMAIL][CODE]', error.code);
+      console.error('[EMAIL][ENV SNAPSHOT]', {
+        EMAIL_ENABLED: process.env.EMAIL_ENABLED,
+        SMTP_HOST: process.env.SMTP_HOST,
+        SMTP_PORT: process.env.SMTP_PORT,
+        SMTP_SECURE: process.env.SMTP_SECURE,
+        SMTP_REQUIRE_TLS: process.env.SMTP_REQUIRE_TLS,
+        SMTP_USER: process.env.SMTP_USER ? '[SET]' : '[MISSING]',
+        SMTP_PASS: process.env.SMTP_PASS ? '[SET]' : '[MISSING]'
+      });
+    }
     throw error;
   }
 };

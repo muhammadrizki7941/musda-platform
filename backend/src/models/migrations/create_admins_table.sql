@@ -1,3 +1,5 @@
+-- DEPRECATED LEGACY FILE: superseded by numbered migration 01_create_admins_table.sql. Kept only for historical reference; do NOT modify or rely on this file.
+-- This file will be ignored because runner dedupes first occurrence of filename pattern.
 CREATE TABLE IF NOT EXISTS admins (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,

@@ -1,4 +1,4 @@
-const User = require('../models/User');
+// const User = require('../models/User'); // Disabled: login only uses admins table
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { dbPromise } = require('../utils/db');

@@ -49,6 +49,23 @@ async function setupDatabase() {
     }
     console.log('✅ Table users verified');
 
+    // Pastikan kolom username ada (untuk kasus schema lama yang belum punya kolom ini)
+    const [usernameCol] = await connection.query("SHOW COLUMNS FROM users LIKE 'username'");
+    if (!usernameCol.length) {
+      console.log("⚠️  Kolom 'username' tidak ditemukan. Menambal schema...");
+      // Tambah kolom sementara NULLable agar tidak gagal jika sudah ada data
+      await connection.query("ALTER TABLE users ADD COLUMN username VARCHAR(50) NULL AFTER id");
+      // Populate nilai username untuk baris yang ada
+      const [rowsNeeding] = await connection.query("SELECT id FROM users WHERE username IS NULL OR username = ''");
+      for (const row of rowsNeeding) {
+        const generated = 'user' + row.id;
+        await connection.query('UPDATE users SET username=? WHERE id=?', [generated, row.id]);
+      }
+      // Ubah kolom menjadi NOT NULL UNIQUE
+      await connection.query("ALTER TABLE users MODIFY COLUMN username VARCHAR(50) NOT NULL UNIQUE");
+      console.log("✅ Kolom 'username' berhasil ditambahkan dan dipopulasi");
+    }
+
     // Buat index jika belum ada
     try {
       await connection.query('CREATE INDEX idx_users_username ON users(username)');

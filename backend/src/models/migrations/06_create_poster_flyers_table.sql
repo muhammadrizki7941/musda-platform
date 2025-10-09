@@ -1,0 +1,11 @@
+-- 06_create_poster_flyers_table.sql
+CREATE TABLE IF NOT EXISTS poster_flyers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  image_url VARCHAR(500) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_poster_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
