@@ -1,26 +1,10 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('@resend/node');
 const fs = require('fs');
 
 class EmailService {
   constructor() {
-    // Fix: should be createTransport (not createTransporter)
-    this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
-    if (process.env.DEBUG_EMAIL === '1') {
-      console.log('[EMAIL] Transporter initialized with host=%s port=%s user=%s', process.env.SMTP_HOST, process.env.SMTP_PORT, process.env.SMTP_USER);
-      this.transporter.verify().then(()=>{
-        console.log('[EMAIL] Transporter verification success');
-      }).catch(err=>{
-        console.error('[EMAIL] Transporter verification failed:', err.message);
-      });
-    }
+    this.resend = new Resend(process.env.RESEND_API_KEY);
+    this.from = process.env.EMAIL_FROM || 'dpdhimperralampung@gmail.com';
   }
 
   async sendTicketEmail(participant, ticketFile) {
@@ -45,35 +29,36 @@ class EmailService {
         }
       });
 
-      const mailOptions = {
-        from: {
-          name: 'HIMPERRA Lampung',
-          address: process.env.SMTP_FROM || 'dpdhimperralampung@gmail.com'
+      // Read attachments as buffers
+      const pdfBuffer = fs.readFileSync(ticketFile.filepath);
+      const pngBuffer = fs.readFileSync(qrPngPath);
+
+      const attachments = [
+        {
+          filename: `E-Tiket-${participant.nama.replace(/\s+/g, '-')}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
         },
+        {
+          filename: `QR-Code-${participant.nama.replace(/\s+/g, '-')}.png`,
+          content: pngBuffer,
+          contentType: 'image/png'
+        }
+      ];
+
+      const result = await this.resend.emails.send({
+        from: this.from,
         to: participant.email,
         subject: 'E-Tiket Sekolah Properti HIMPERRA Lampung',
         html: this.generateTicketEmailTemplate(participant),
-        attachments: [
-          {
-            filename: `E-Tiket-${participant.nama.replace(/\s+/g, '-')}.pdf`,
-            path: ticketFile.filepath,
-            contentType: 'application/pdf'
-          },
-          {
-            filename: `QR-Code-${participant.nama.replace(/\s+/g, '-')}.png`,
-            path: qrPngPath,
-            contentType: 'image/png'
-          }
-        ]
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email sent successfully:', result.messageId);
+        attachments
+      });
+      console.log('Email sent successfully:', result.id);
       // Optional: Clean up QR PNG file after sending
       setTimeout(() => {
         try { if (fs.existsSync(qrPngPath)) fs.unlinkSync(qrPngPath); } catch {}
       }, 10000);
-      return { success: true, messageId: result.messageId };
+      return { success: true, messageId: result.id };
 
     } catch (error) {
       console.error('Error sending email:', error);
@@ -83,20 +68,14 @@ class EmailService {
 
   async sendPaymentConfirmation(participant) {
     try {
-      const mailOptions = {
-        from: {
-          name: 'HIMPERRA Lampung',
-          address: process.env.SMTP_FROM || 'dpdhimperralampung@gmail.com'
-        },
+      const result = await this.resend.emails.send({
+        from: this.from,
         to: participant.email,
         subject: 'Konfirmasi Pembayaran - Sekolah Properti HIMPERRA Lampung',
         html: this.generatePaymentConfirmationTemplate(participant)
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Payment confirmation email sent:', result.messageId);
-      return { success: true, messageId: result.messageId };
-
+      });
+      console.log('Payment confirmation email sent:', result.id);
+      return { success: true, messageId: result.id };
     } catch (error) {
       console.error('Error sending payment confirmation:', error);
       throw new Error('Failed to send payment confirmation');
