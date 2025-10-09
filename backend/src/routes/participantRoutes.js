@@ -249,32 +249,33 @@ router.post('/:id/resend-ticket', async (req, res) => {
       hasToken: !!participant.verification_token
     });
 
-    try {
-      const result = await sendTicketEmail(participant.id, {
-        id: participant.id,
-        nama: participant.nama,
-        email: participant.email,
-        whatsapp: participant.whatsapp,
-        instansi: participant.asal_instansi,
-        asal_instansi: participant.asal_instansi,
-        kota: participant.kota,
-        kategori: participant.kategori,
-        qr_code: participant.qr_code,
-        verification_token: participant.verification_token,
-        created_at: participant.created_at,
-        booking_date: new Date().toISOString().slice(0, 10)
-      });
+    // Kirim email e-ticket di background agar response cepat
+    setImmediate(async () => {
+      try {
+        await sendTicketEmail(participant.id, {
+          id: participant.id,
+          nama: participant.nama,
+          email: participant.email,
+          whatsapp: participant.whatsapp,
+          instansi: participant.asal_instansi,
+          asal_instansi: participant.asal_instansi,
+          kota: participant.kota,
+          kategori: participant.kategori,
+          qr_code: participant.qr_code,
+          verification_token: participant.verification_token,
+          created_at: participant.created_at,
+          booking_date: new Date().toISOString().slice(0, 10)
+        });
+      } catch (qrError) {
+        console.error('[RESEND] Error sending e-ticket (async):', qrError);
+      }
+    });
 
-      return res.json({
-        message: 'E-ticket berhasil dikirim ulang',
-        email: participant.email,
-        meta: result,
-        duration_ms: Date.now() - started
-      });
-    } catch (qrError) {
-      console.error('[RESEND] Error sending e-ticket:', qrError);
-      return res.status(500).json({ error: 'Gagal mengirim e-ticket', details: qrError.message });
-    }
+    return res.json({
+      message: 'Permintaan diterima, e-ticket akan dikirim ulang ke email Anda dalam beberapa menit.',
+      email: participant.email,
+      duration_ms: Date.now() - started
+    });
   } catch (error) {
     console.error('[RESEND] Error in resend ticket root:', error);
     res.status(500).json({
