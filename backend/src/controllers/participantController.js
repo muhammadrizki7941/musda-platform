@@ -78,16 +78,22 @@ const participantController = {
         // Update ticket URL
         await Participant.updatePaymentStatus(participantId, 'paid', ticketFile.url);
         
-        // Send email with ticket
+        // Kirim email e-ticket di background agar response cepat
         const emailService = new EmailService();
-        await emailService.sendTicketEmail(participant, ticketFile);
+        setImmediate(async () => {
+          try {
+            await emailService.sendTicketEmail(participant, ticketFile);
+          } catch (err) {
+            console.error('Error sending e-ticket email (async):', err);
+          }
+        });
 
         return res.json({
           id: participantId,
           paymentCode,
           status: 'paid',
           amount,
-          message: 'Pendaftaran berhasil! E-tiket telah dikirim ke email Anda.',
+          message: 'Pendaftaran berhasil! E-tiket akan dikirim ke email Anda dalam beberapa menit.',
           ticketUrl: ticketFile.url
         });
       }
