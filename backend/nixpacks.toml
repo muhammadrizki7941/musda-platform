@@ -3,7 +3,17 @@
 
 [phases.setup]
 # Install Node and common font packages so node-canvas can render text properly
-nixPkgs = ["nodejs_20", "fontconfig", "dejavu_fonts", "noto-fonts"]
+# Also include libraries node-canvas relies on (cairo, pango, freetype)
+nixPkgs = [
+	"nodejs_20",
+	"fontconfig",
+	"dejavu_fonts",
+	"noto-fonts",
+	"cairo",
+	"pango",
+	"libpng",
+	"freetype"
+]
 
 [phases.install]
 # Use npm ci if lockfile present; fallback to npm install (some older npm issues in Railway images)
