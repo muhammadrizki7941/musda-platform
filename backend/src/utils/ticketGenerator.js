@@ -58,7 +58,7 @@ class TicketGenerator {
          .text('Waktu: 08:00 - 17:00 WIB', 50, 135)
          .text('Tempat: Hotel Radisson Bandar Lampung', 50, 150);
 
-      // Participant info box
+  // Participant info box
       doc.rect(50, 180, 495, 120)
          .stroke('#CCCCCC');
 
@@ -73,6 +73,21 @@ class TicketGenerator {
          .text(`Kategori: ${participant.kategori === 'mahasiswa' ? 'Mahasiswa' : 'Umum'}`, 60, 275)
          .text(`Asal: ${participant.asal_instansi}`, 60, 295);
 
+      // Payment status badge just below info box
+      const isPaid = (participant.payment_status || '').toLowerCase() === 'paid';
+      const statusLabel = isPaid ? 'STATUS: LUNAS (PAID)' : `STATUS: ${(participant.payment_status || 'PENDING').toUpperCase()}`;
+      doc.fontSize(12);
+      const statusTextWidth = doc.widthOfString(statusLabel);
+      const statusBoxWidth = statusTextWidth + 20;
+      const statusX = 60;
+      const statusY = 305;
+      // Draw rounded rectangle for status (PDFKit supports roundedRect)
+      doc.save();
+      doc.roundedRect(statusX, statusY, statusBoxWidth, 22, 4)
+        .fill(isPaid ? '#2ecc71' : '#f39c12');
+      doc.fillColor('#FFFFFF').text(statusLabel, statusX + 10, statusY + 4);
+      doc.restore();
+
       // QR Code
       const qrBuffer = Buffer.from(qrCodeDataURL.split(',')[1], 'base64');
       doc.image(qrBuffer, 400, 320, { width: 120, height: 120 });
@@ -82,16 +97,16 @@ class TicketGenerator {
          .fillColor('#666666')
          .text('Scan QR untuk Check-in', 420, 450, { align: 'center', width: 80 });
 
-      // Payment info box
+    // Payment info box
       doc.fontSize(10)
          .fillColor('#555555')
-         .text(`Kode Pembayaran: ${participant.paymentCode || 'N/A'}`, 60, 315)
-         .text(`Biaya: Rp ${participant.amount ? participant.amount.toLocaleString('id-ID') : '150.000'}`, 60, 330);
+      .text(`Kode Pembayaran: ${participant.paymentCode || 'N/A'}`, 60, 330)
+      .text(`Biaya: Rp ${participant.amount ? participant.amount.toLocaleString('id-ID') : '150.000'}`, 60, 345);
 
-      // Important notes
+    // Important notes
       doc.fontSize(12)
          .fillColor('#333333')
-         .text('PETUNJUK PENTING:', 50, 350, { underline: true });
+      .text('PETUNJUK PENTING:', 50, 370, { underline: true });
 
       const instructions = [
         '• Harap tiba 30 menit sebelum acara dimulai',
@@ -101,7 +116,7 @@ class TicketGenerator {
         '• Acara akan dimulai tepat waktu'
       ];
 
-      let yPos = 375;
+  let yPos = 395;
       instructions.forEach(instruction => {
         doc.fontSize(10)
            .fillColor('#555555')

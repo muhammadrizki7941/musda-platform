@@ -15,8 +15,9 @@ const { getUploadsAbsPath } = require('./paths');
 async function generateQRTemplate(data, participant, outputPath) {
   try {
     // Canvas dimensions (optimized for mobile viewing and printing)
-    const canvasWidth = 800;
-    const canvasHeight = 1200;
+  const canvasWidth = 800;
+  // Tambahkan ruang vertikal ekstra agar desain tidak terpotong saat diunduh
+  const canvasHeight = 1400;
     
     // Create canvas
     const canvas = createCanvas(canvasWidth, canvasHeight);
@@ -31,7 +32,9 @@ async function generateQRTemplate(data, participant, outputPath) {
       white: '#ffffff',
       lightGray: '#f8f8f8',
       darkGray: '#333333',
-      border: '#d4af37'        // Gold border
+      border: '#d4af37',       // Gold border
+      success: '#2ecc71',      // Success green
+      warning: '#f39c12'       // Warning orange
     };
     
     // Background with elegant dark gradient (MUSDA II style)
@@ -168,7 +171,7 @@ async function generateQRTemplate(data, participant, outputPath) {
     ctx.fillText(participant.instansi || participant.institution || 'Peserta SPH', canvasWidth/2, infoY + 110);
     ctx.fillText(participant.email, canvasWidth/2, infoY + 135);
     
-    // Ticket number with gold background
+  // Ticket number with gold background
     const ticketText = `Ticket #${participant.id.toString().padStart(4, '0')}`;
     ctx.fillStyle = colors.accent;
     const ticketWidth = 180;
@@ -178,9 +181,43 @@ async function generateQRTemplate(data, participant, outputPath) {
     ctx.font = 'bold 16px Georgia';
     ctx.shadowBlur = 0;
     ctx.fillText(ticketText, canvasWidth/2, infoY + 170);
+
+  // Payment status badge (only meaningful when downloaded after paid)
+  const isPaid = (participant.payment_status || '').toLowerCase() === 'paid';
+  const statusLabel = isPaid ? 'STATUS: LUNAS (PAID)' : `STATUS: ${(participant.payment_status || 'PENDING').toUpperCase()}`;
+  const statusY = infoY + infoHeight + 20; // ditempatkan di antara info box dan QR
+  const statusPaddingX = 18;
+  const statusPaddingY = 8;
+  ctx.font = 'bold 18px Georgia';
+  const statusTextWidth = ctx.measureText(statusLabel).width;
+  const statusBoxWidth = statusTextWidth + statusPaddingX * 2;
+  const statusBoxHeight = 34;
+  const statusX = (canvasWidth - statusBoxWidth) / 2;
+  // Badge background
+  ctx.fillStyle = isPaid ? colors.success : colors.warning;
+  ctx.strokeStyle = colors.accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const r = 10; // rounded corners
+  ctx.moveTo(statusX + r, statusY);
+  ctx.lineTo(statusX + statusBoxWidth - r, statusY);
+  ctx.quadraticCurveTo(statusX + statusBoxWidth, statusY, statusX + statusBoxWidth, statusY + r);
+  ctx.lineTo(statusX + statusBoxWidth, statusY + statusBoxHeight - r);
+  ctx.quadraticCurveTo(statusX + statusBoxWidth, statusY + statusBoxHeight, statusX + statusBoxWidth - r, statusY + statusBoxHeight);
+  ctx.lineTo(statusX + r, statusY + statusBoxHeight);
+  ctx.quadraticCurveTo(statusX, statusY + statusBoxHeight, statusX, statusY + statusBoxHeight - r);
+  ctx.lineTo(statusX, statusY + r);
+  ctx.quadraticCurveTo(statusX, statusY, statusX + r, statusY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Badge text
+  ctx.fillStyle = colors.white;
+  ctx.textAlign = 'center';
+  ctx.fillText(statusLabel, statusX + statusBoxWidth / 2, statusY + statusBoxHeight / 2 + 6);
     
     // QR Code section - MUSDA II Dark Theme
-    const qrY = infoY + infoHeight + 50;
+  const qrY = infoY + infoHeight + 50 + 10; // tambah sedikit jarak setelah badge status
     const qrSize = 320;
     const qrX = (canvasWidth - qrSize) / 2;
     
@@ -236,15 +273,16 @@ async function generateQRTemplate(data, participant, outputPath) {
     const instructY = qrY + qrSize + 130;
     
     // Dark background with gold border
-    const instrGradient = ctx.createLinearGradient(0, instructY, 0, instructY + 180);
+  const instructionBoxHeight = 220; // beri ruang lebih agar tidak mepet footer
+  const instrGradient = ctx.createLinearGradient(0, instructY, 0, instructY + instructionBoxHeight);
     instrGradient.addColorStop(0, colors.secondary);
     instrGradient.addColorStop(1, colors.darkGray);
     ctx.fillStyle = instrGradient;
-    ctx.fillRect(50, instructY, canvasWidth - 100, 180);
+  ctx.fillRect(50, instructY, canvasWidth - 100, instructionBoxHeight);
     
     ctx.strokeStyle = colors.accent;
     ctx.lineWidth = 2;
-    ctx.strokeRect(50, instructY, canvasWidth - 100, 180);
+  ctx.strokeRect(50, instructY, canvasWidth - 100, instructionBoxHeight);
     
     // Instructions title
     ctx.fillStyle = colors.accent;
@@ -271,8 +309,10 @@ async function generateQRTemplate(data, participant, outputPath) {
     });
     ctx.shadowBlur = 0;
     
-    // Footer - MUSDA II Style
-    const footerY = canvasHeight - 100;
+  // Footer - MUSDA II Style
+  // Pastikan footer berada di bawah instruction box dengan jarak aman
+  const footerMinTop = instructY + instructionBoxHeight + 60;
+  const footerY = Math.max(canvasHeight - 120, footerMinTop);
     
     // Footer background
     ctx.fillStyle = colors.primary;

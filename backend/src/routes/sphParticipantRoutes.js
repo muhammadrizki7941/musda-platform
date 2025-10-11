@@ -8,7 +8,7 @@ const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 const { logoToBase64 } = require('../utils/logoConverter');
-const { sendETicketEmail } = require('../utils/emailTemplates');
+const { sendETicketEmail, sendAdminNewRegistrationEmail } = require('../utils/emailTemplates');
 const { generateQRTemplate } = require('../utils/qrTemplateGenerator');
 const { getUploadsAbsPath, getUploadsPublicPath } = require('../utils/paths');
 
@@ -138,8 +138,10 @@ router.post('/register', async (req, res) => {
       console.error('Error fetching pricing info, using fallback:', error);
     }
 
-    // Create participant
-    const participantId = await SPHParticipantModel.createParticipant(finalData);
+  // Create participant
+  const participantId = await SPHParticipantModel.createParticipant(finalData);
+  // Fetch created participant for notification context
+  const createdParticipant = await SPHParticipantModel.getParticipantById(participantId);
 
     // If free mode, auto-mark as paid and send e-ticket immediately
     if (isFree) {
@@ -170,6 +172,10 @@ router.post('/register', async (req, res) => {
 
         await SPHParticipantModel.updateQRCode(participantId, publicTemplatePath);
         await sendETicketEmail(updatedParticipant, absSimplePath);
+        // Notify admins about new (auto-paid) registration
+        setImmediate(() => {
+          sendAdminNewRegistrationEmail(updatedParticipant).catch(e => console.error('Admin notify error:', e));
+        });
 
         return res.status(201).json({
           success: true,
@@ -198,6 +204,11 @@ router.post('/register', async (req, res) => {
         });
       }
     }
+
+    // Notify admins about new registration (pending)
+    setImmediate(() => {
+      sendAdminNewRegistrationEmail(createdParticipant).catch(e => console.error('Admin notify error:', e));
+    });
 
     // Paid mode (not free): return pending with amount
     res.status(201).json({
@@ -524,3 +535,43 @@ router.get('/:id/download-qr-template', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+// Download e-ticket PDF
+router.get('/:id/download-ticket', authMiddleware, async (req, res) => {
+  try {
+    const participantId = req.params.id;
+    const participant = await SPHParticipantModel.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(404).json({ success: false, message: 'Participant not found' });
+    }
+    if (participant.payment_status !== 'paid') {
+      return res.status(400).json({ success: false, message: 'Payment is not confirmed yet' });
+    }
+    // Generate PDF ticket
+    const TicketGenerator = require('../utils/ticketGenerator');
+    // Mapping data peserta ke format yang dibutuhkan generator
+    const mappedParticipant = {
+      id: participant.id,
+      nama: participant.full_name || participant.nama || '-',
+      email: participant.email,
+      whatsapp: participant.phone || participant.whatsapp || '-',
+      kategori: participant.experience_level || participant.kategori || '-',
+      asal_instansi: participant.institution || participant.asal_instansi || '-',
+      paymentCode: participant.payment_code || '-',
+      amount: participant.amount || 150000,
+      payment_status: participant.payment_status
+    };
+    const ticket = await TicketGenerator.generateTicket(mappedParticipant);
+    const absPdfPath = require('path').join(__dirname, '../../uploads/tickets', ticket.filename);
+    if (!require('fs').existsSync(absPdfPath)) {
+      return res.status(404).json({ success: false, message: 'E-ticket PDF not found' });
+    }
+    res.download(absPdfPath, `SPH_E-Ticket_${mappedParticipant.nama}_${participantId}.pdf`, err => {
+      if (err) {
+        console.error('Download PDF error:', err);
+      }
+    });
+  } catch (error) {
+    console.error('Error generating/downloading PDF ticket:', error);
+    res.status(500).json({ success: false, message: 'Error generating/downloading PDF ticket' });
+  }
+});

@@ -170,3 +170,88 @@ async function sendETicketEmail(participant, qrCodePath) {
 }
 
 module.exports = { sendETicketEmail };
+// --- Admin notification email for new registrations ---
+const { sendEmailUnified } = require('./emailProvider');
+async function sendAdminNewRegistrationEmail(participant) {
+  try {
+    // Dev mode short-circuit
+    if (process.env.EMAIL_ENABLED !== 'true') {
+      console.log('📧 [DEV] Admin notification disabled. New registration:', {
+        id: participant.id,
+        name: participant.full_name || participant.nama,
+        email: participant.email,
+        phone: participant.phone || participant.whatsapp,
+        status: participant.payment_status,
+      });
+      return { success: true, mode: 'development' };
+    }
+
+    // Resolve recipients
+    const rawRcpts = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || process.env.SMTP_FROM;
+    const toList = (rawRcpts || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (toList.length === 0) {
+      console.log('📧 No admin recipients configured (ADMIN_EMAILS/ADMIN_EMAIL). Skipping.');
+      return { success: false, message: 'No recipients' };
+    }
+
+    const subject = `🔔 Pendaftar SPH Baru: ${(participant.full_name || participant.nama || 'Peserta').toString()} (#${participant.id || '-'})`;
+    // Determine admin dashboard URL (configurable via env)
+    const dashUrl = (process.env.ADMIN_DASHBOARD_URL
+      || process.env.FRONTEND_BASE_URL && `${process.env.FRONTEND_BASE_URL.replace(/\/$/, '')}/admin`
+      || 'http://localhost:5173/admin');
+    const status = (participant.payment_status || 'pending').toUpperCase();
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #eee;border-radius:10px;padding:20px">
+        <h2 style="margin:0 0 10px 0">🔔 Pendaftar Baru SPH 2025</h2>
+        <p style="margin:0 0 10px 0;color:#555">Ada pendaftaran baru masuk. Mohon ditinjau dan tindak lanjuti (WA).</p>
+        <table style="width:100%;font-size:14px;color:#333">
+          <tr><td style="width:160px;color:#666">ID</td><td><b>${participant.id || '-'}</b></td></tr>
+          <tr><td style="color:#666">Nama</td><td><b>${participant.full_name || participant.nama || '-'}</b></td></tr>
+          <tr><td style="color:#666">Email</td><td>${participant.email || '-'}</td></tr>
+          <tr><td style="color:#666">Telepon</td><td>${participant.phone || participant.whatsapp || '-'}</td></tr>
+          <tr><td style="color:#666">Instansi</td><td>${participant.institution || participant.instihtion || participant.asal_instansi || '-'}</td></tr>
+          <tr><td style="color:#666">Level</td><td>${participant.experience_level || participant.kategori || '-'}</td></tr>
+          <tr><td style="color:#666">Metode Bayar</td><td>${participant.payment_method || '-'}</td></tr>
+          <tr><td style="color:#666">Kode Bayar</td><td>${participant.payment_code || participant.paymentCode || '-'}</td></tr>
+          <tr><td style="color:#666">Status</td><td><b>${status}</b></td></tr>
+        </table>
+        <div style="margin-top:18px;text-align:center">
+          <a href="${dashUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2d6cdf;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600">
+            Buka Dashboard Admin SPH
+          </a>
+        </div>
+        <p style="margin-top:16px;color:#555">Admin dapat segera menghubungi peserta via WhatsApp untuk mengirimkan e-ticket/QR jika diperlukan.</p>
+      </div>
+    `;
+
+    // Prefer unified provider (Resend or SMTP host) for Railway compatibility
+    try {
+      await sendEmailUnified({
+        from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: toList,
+        subject,
+        html
+      });
+    } catch (primaryErr) {
+      // Fallback to nodemailer transporter if available
+      if (!transporter) throw primaryErr;
+      const mailOptions = {
+        from: `"SPH 2025 - Notifier" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        to: toList,
+        subject,
+        html
+      };
+      await transporter.sendMail(mailOptions);
+    }
+    console.log('✅ Admin notification sent for participant:', participant.id);
+    return { success: true };
+  } catch (err) {
+    console.error('❌ Error sending admin notification:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+module.exports.sendAdminNewRegistrationEmail = sendAdminNewRegistrationEmail;
