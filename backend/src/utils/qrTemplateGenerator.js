@@ -117,21 +117,21 @@ async function generateQRTemplate(data, participant, outputPath) {
       ctx.fillText('SPH', logoX + logoSize/2, logoY + logoSize/2 + 12);
     }
     
-    // Title text - MUSDA II Style
-    ctx.fillStyle = colors.accent; // Gold color
-    ctx.font = 'bold 42px Georgia';
+  // Title text - MUSDA II Style (use widely-available sans font)
+  ctx.fillStyle = colors.accent; // Gold color
+  ctx.font = 'bold 42px DejaVu Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
     ctx.shadowBlur = 3;
     ctx.shadowOffsetY = 2;
     ctx.fillText('E-TICKET SPH 2025', logoX + logoSize + 40, logoY + 50);
     
-    ctx.font = '20px Georgia';
+  ctx.font = '20px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.white;
     ctx.shadowBlur = 2;
     ctx.fillText('Sekolah Properti Himperra', logoX + logoSize + 40, logoY + 80);
     
-    ctx.font = '16px Georgia';
+  ctx.font = '16px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.lightGray;
     ctx.shadowBlur = 1;
     ctx.fillText('HIMPERRA LAMPUNG', logoX + logoSize + 40, logoY + 105);
@@ -153,19 +153,19 @@ async function generateQRTemplate(data, participant, outputPath) {
     ctx.strokeRect(50, infoY, canvasWidth - 100, infoHeight);
     
     // Participant info with gold text
-    ctx.fillStyle = colors.white;
-    ctx.font = 'bold 28px Georgia';
+  ctx.fillStyle = colors.white;
+  ctx.font = 'bold 28px DejaVu Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 2;
     ctx.fillText('Selamat Datang', canvasWidth/2, infoY + 40);
     
-    ctx.fillStyle = colors.accent;
-    ctx.font = 'bold 32px Georgia';
+  ctx.fillStyle = colors.accent;
+  ctx.font = 'bold 32px DejaVu Sans, sans-serif';
     ctx.shadowBlur = 3;
     ctx.fillText(`${participant.nama || participant.full_name}`, canvasWidth/2, infoY + 80);
     
-    ctx.font = '18px Georgia';
+  ctx.font = '18px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.lightGray;
     ctx.shadowBlur = 1;
     ctx.fillText(participant.instansi || participant.institution || 'Peserta SPH', canvasWidth/2, infoY + 110);
@@ -178,7 +178,7 @@ async function generateQRTemplate(data, participant, outputPath) {
     const ticketHeight = 30;
     ctx.fillRect(canvasWidth/2 - ticketWidth/2, infoY + 150, ticketWidth, ticketHeight);
     ctx.fillStyle = colors.primary;
-    ctx.font = 'bold 16px Georgia';
+  ctx.font = 'bold 16px DejaVu Sans, sans-serif';
     ctx.shadowBlur = 0;
     ctx.fillText(ticketText, canvasWidth/2, infoY + 170);
 
@@ -188,7 +188,7 @@ async function generateQRTemplate(data, participant, outputPath) {
   const statusY = infoY + infoHeight + 20; // ditempatkan di antara info box dan QR
   const statusPaddingX = 18;
   const statusPaddingY = 8;
-  ctx.font = 'bold 18px Georgia';
+  ctx.font = 'bold 18px DejaVu Sans, sans-serif';
   const statusTextWidth = ctx.measureText(statusLabel).width;
   const statusBoxWidth = statusTextWidth + statusPaddingX * 2;
   const statusBoxHeight = 34;
@@ -256,14 +256,15 @@ async function generateQRTemplate(data, participant, outputPath) {
     ctx.drawImage(qrImg, qrX + 30, qrY + 30, qrSize - 60, qrSize - 60);
     
     // QR Code label with MUSDA II style
-    ctx.fillStyle = colors.accent;
-    ctx.font = 'bold 24px Georgia';
+  ctx.fillStyle = colors.accent;
+  ctx.font = 'bold 24px DejaVu Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 3;
-    ctx.fillText('📱 Scan QR Code untuk Check-in', canvasWidth/2, qrY + qrSize + 50);
+  // Avoid emojis to prevent missing glyphs in minimal servers
+  ctx.fillText('Scan QR Code untuk Check-in', canvasWidth/2, qrY + qrSize + 50);
     
-    ctx.font = '16px Georgia';
+  ctx.font = '16px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.white;
     ctx.shadowBlur = 2;
     ctx.fillText('Tunjukkan QR ini saat registrasi di lokasi acara', canvasWidth/2, qrY + qrSize + 80);
@@ -285,8 +286,8 @@ async function generateQRTemplate(data, participant, outputPath) {
   ctx.strokeRect(50, instructY, canvasWidth - 100, instructionBoxHeight);
     
     // Instructions title
-    ctx.fillStyle = colors.accent;
-    ctx.font = 'bold 20px Georgia';
+  ctx.fillStyle = colors.accent;
+  ctx.font = 'bold 20px DejaVu Sans, sans-serif';
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 2;
@@ -301,7 +302,7 @@ async function generateQRTemplate(data, participant, outputPath) {
       '• Siapkan alat tulis untuk materi pembelajaran'
     ];
     
-    ctx.font = '16px Georgia';
+    ctx.font = '16px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.white;
     ctx.shadowBlur = 1;
     instructions.forEach((instruction, index) => {
@@ -321,19 +322,20 @@ async function generateQRTemplate(data, participant, outputPath) {
     ctx.lineWidth = 2;
     ctx.strokeRect(30, footerY - 20, canvasWidth - 60, 80);
     
-    ctx.fillStyle = colors.accent;
-    ctx.font = 'bold 20px Georgia';
+  ctx.fillStyle = colors.accent;
+  ctx.font = 'bold 20px DejaVu Sans, sans-serif';
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
     ctx.shadowBlur = 2;
-    ctx.fillText('🏛️ MUSDA II HIMPERRA LAMPUNG', canvasWidth/2, footerY + 5);
+  // Avoid emojis to prevent missing glyphs
+  ctx.fillText('MUSDA II HIMPERRA LAMPUNG', canvasWidth/2, footerY + 5);
     
-    ctx.font = '14px Georgia';
+  ctx.font = '14px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.white;
     ctx.shadowBlur = 1;
     ctx.fillText('Sekolah Properti Himperra', canvasWidth/2, footerY + 25);
     
-    ctx.font = '12px Georgia';
+  ctx.font = '12px DejaVu Sans, sans-serif';
     ctx.fillStyle = colors.lightGray;
     ctx.fillText('© 2025 SPH - Himpunan Pengembang Perumahan dan Permukiman Rakyat Daerah Lampung', canvasWidth/2, footerY + 45);
     ctx.shadowBlur = 0;

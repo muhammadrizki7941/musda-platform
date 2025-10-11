@@ -2,7 +2,8 @@
 # and skips unintended frontend build steps from the monorepo root.
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+# Install Node and common font packages so node-canvas can render text properly
+nixPkgs = ["nodejs_20", "fontconfig", "dejavu_fonts", "noto-fonts"]
 
 [phases.install]
 # Use npm ci if lockfile present; fallback to npm install (some older npm issues in Railway images)

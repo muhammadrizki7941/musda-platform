@@ -37,6 +37,12 @@ if (!resendClient && process.env.EMAIL_ENABLED !== 'false') {
 
 async function sendViaResend({ from, to, subject, html, attachments }) {
   if (!resendClient) throw new Error('Resend client not initialized');
+  // If running in trial/unverified domain, allow sandbox sender fallback
+  let effectiveFrom = from || process.env.EMAIL_FROM || process.env.SMTP_USER;
+  const sandboxFrom = process.env.RESEND_SANDBOX_FROM || 'onboarding@resend.dev';
+  if (process.env.RESEND_USE_SANDBOX === 'true' && sandboxFrom) {
+    effectiveFrom = sandboxFrom;
+  }
   // Resend expects attachments as array of { filename, content } with base64 string or Buffer
   const files = (attachments || []).map(a => {
     let contentBase64;
@@ -56,14 +62,14 @@ async function sendViaResend({ from, to, subject, html, attachments }) {
     };
   });
   const mail = {
-    from: from || process.env.EMAIL_FROM || process.env.SMTP_USER,
+    from: effectiveFrom,
     to,
     subject,
     html,
     attachments: files
   };
   if (process.env.DEBUG_EMAIL === '1') {
-    console.log('[EMAIL][RESEND][SEND] to=%s subject="%s" files=%d', to, subject, files.length);
+    console.log('[EMAIL][RESEND][SEND] from=%s to=%s subject="%s" files=%d', mail.from, Array.isArray(to)? to.join(',') : to, subject, files.length);
   }
   const result = await resendClient.emails.send(mail);
   if (process.env.DEBUG_EMAIL === '1') {
@@ -88,12 +94,20 @@ async function sendViaSMTP({ from, to, subject, html, attachments }) {
 async function sendEmailUnified(opts) {
   if (resendClient) {
     try {
-      return await sendViaResend(opts);
+      const r = await sendViaResend(opts);
+      if (process.env.DEBUG_EMAIL === '1') {
+        console.log('[EMAIL][UNIFIED] Sent via Resend OK id=%s', r.id);
+      }
+      return r;
     } catch (e) {
       console.error('[EMAIL][RESEND] Failed, switching to SMTP fallback:', e.message);
     }
   }
-  return await sendViaSMTP(opts);
+  const s = await sendViaSMTP(opts);
+  if (process.env.DEBUG_EMAIL === '1') {
+    console.log('[EMAIL][UNIFIED] Sent via SMTP OK id=%s', s.id);
+  }
+  return s;
 }
 
 module.exports = {
