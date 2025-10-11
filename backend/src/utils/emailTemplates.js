@@ -187,13 +187,20 @@ async function sendAdminNewRegistrationEmail(participant) {
     }
 
     // Resolve recipients
-    const rawRcpts = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || process.env.SMTP_FROM;
+    // Determine recipients with robust fallbacks
+    // Priority: ADMIN_EMAILS -> ADMIN_EMAIL -> EMAIL_FROM -> SMTP_FROM
+    const rawRcpts = process.env.ADMIN_EMAILS
+      || process.env.ADMIN_EMAIL
+      || process.env.EMAIL_FROM
+      || process.env.SMTP_FROM;
     const toList = (rawRcpts || '')
       .split(',')
       .map(s => s.trim())
+      // strip surrounding quotes if user pasted with quotes in env
+      .map(s => s.replace(/^"+|"+$/g, '').replace(/^'+|'+$/g, ''))
       .filter(Boolean);
     if (toList.length === 0) {
-      console.log('📧 No admin recipients configured (ADMIN_EMAILS/ADMIN_EMAIL). Skipping.');
+      console.log('📧 No admin recipients configured (ADMIN_EMAILS/ADMIN_EMAIL/EMAIL_FROM/SMTP_FROM). Skipping.');
       return { success: false, message: 'No recipients' };
     }
 

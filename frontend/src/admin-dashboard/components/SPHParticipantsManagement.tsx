@@ -1,3 +1,31 @@
+  // WhatsApp share only (admin will attach e-ticket manually)
+  const handleSendWhatsApp = async (participant: SPHParticipant) => {
+    try {
+      // Normalize phone to Indonesian format for wa.me
+      const raw = (participant.phone || '').trim();
+      let phone = raw.replace(/[^0-9+]/g, '');
+      if (phone.startsWith('+62')) phone = phone.slice(1); // +62 -> 62
+      else if (phone.startsWith('0')) phone = '62' + phone.slice(1);
+      // Build message caption
+      const lines = [
+        `Halo ${participant.full_name},`,
+        '',
+        'E-ticket SPH 2025 Anda sudah tersedia ✅',
+        'Silakan cek pesan ini. Panitia akan melampirkan e-ticket (PDF/PNG) pada chat ini.',
+        '',
+        `Nama: ${participant.full_name}`,
+        `Email: ${participant.email}`,
+        `Instansi: ${participant.institution || '-'}`,
+        '',
+        'Mohon simpan e-ticket dan tunjukkan QR saat check-in. Terima kasih.'
+      ];
+      const message = lines.join('\n');
+      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.open(waUrl, '_blank');
+    } catch (err) {
+      alert('Gagal membuka WhatsApp.');
+    }
+  };
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -602,6 +630,14 @@ export function SPHParticipantsManagement() {
                               title="Download QR Template Professional"
                             >
                               <Download className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSendWhatsApp(participant)}
+                              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white border-0 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-green-500/25"
+                              title="Kirim via WhatsApp"
+                            >
+                              <Phone className="w-4 h-4" />
                             </Button>
                           </>
                         )}

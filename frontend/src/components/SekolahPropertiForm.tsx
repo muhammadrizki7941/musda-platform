@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../config/api';
 import { motion } from 'motion/react';
 import { User, Mail, Phone, Building, MessageSquare, CreditCard, Smartphone, ArrowLeft, Home } from 'lucide-react';
 
@@ -84,8 +85,8 @@ const SekolahPropertiForm: React.FC<Props> = ({ onSuccess }) => {
     const fetchPaymentSettings = async () => {
       try {
         const [pricingResponse, bankResponse] = await Promise.all([
-          fetch('/api/sph-payment-settings/pricing'),
-          fetch('/api/sph-payment-settings/bank-info')
+          fetch(getApiUrl('/sph-payment-settings/pricing')),
+          fetch(getApiUrl('/sph-payment-settings/bank-info'))
         ]);
 
         if (pricingResponse.ok) {
@@ -162,7 +163,7 @@ const SekolahPropertiForm: React.FC<Props> = ({ onSuccess }) => {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/sph-participants/register', {
+      const response = await fetch(getApiUrl('/sph-participants/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

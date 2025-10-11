@@ -203,6 +203,30 @@ const ParticipantManagement: React.FC = () => {
       : <Badge className="bg-gray-500 text-white">Belum Verifikasi</Badge>;
   };
 
+  // Download E-Ticket PDF/PNG
+  const handleDownloadETicket = async (participantId: number) => {
+    try {
+      const response = await apiCall(`/participants/${participantId}/download-ticket`, { method: 'GET' });
+      // Assume response contains { pdfUrl, pngUrl }
+      if (response.pdfUrl) {
+        window.open(response.pdfUrl, '_blank');
+      } else {
+        alert('E-Ticket PDF tidak tersedia');
+      }
+    } catch (error) {
+      alert('Gagal download e-ticket');
+    }
+  };
+
+  // WhatsApp Template
+  const handleSendWhatsApp = (participant: Participant) => {
+    const message = `Halo ${participant.nama},\n\nBerikut e-ticket Anda untuk acara Sekolah Properti HIMPERRA Lampung.\n\nNama: ${participant.nama}\nEmail: ${participant.email}\nInstansi: ${participant.asal_instansi || '-'}\n\nSilakan download e-ticket PDF di link berikut:\n[LINK E-TICKET]\n\nTunjukkan e-ticket/QR code saat check-in. Terima kasih.`;
+    // WhatsApp API format
+    const phone = participant.whatsapp.replace(/^0/, '62');
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
@@ -502,6 +526,22 @@ const ParticipantManagement: React.FC = () => {
                               title="Kirim ulang e-ticket"
                             >
                               📧 Kirim Ulang
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleDownloadETicket(participant.id)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-xs text-white border border-indigo-400/40 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                              title="Download E-Ticket"
+                            >
+                              ⬇️ Download E-Ticket
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleSendWhatsApp(participant)}
+                              className="bg-green-700 hover:bg-green-800 text-xs text-white border border-green-400/40 focus:ring-2 focus:ring-green-400 focus:outline-none"
+                              title="Kirim via WhatsApp"
+                            >
+                              🟢 WhatsApp
                             </Button>
                             <Button 
                               size="sm" 
