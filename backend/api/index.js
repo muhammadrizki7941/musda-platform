@@ -1,3 +1,10 @@
+// Vercel serverless entrypoint that proxies to our Express app
+// Vercel passes (req, res) to the exported handler.
+// Our src/index.js exports the Express app (no app.listen when VERCEL env is present).
+
+const app = require('../src/index.js');
+
+module.exports = app;
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');

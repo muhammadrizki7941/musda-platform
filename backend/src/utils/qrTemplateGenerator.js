@@ -1,5 +1,14 @@
 const QRCode = require('qrcode');
-const { createCanvas, loadImage } = require('canvas');
+let createCanvas = null;
+let loadImage = null;
+// Lazy load canvas (not available on some serverless hosts like Vercel) and allow graceful fallback
+try {
+  const canvasLib = require('canvas');
+  createCanvas = canvasLib.createCanvas;
+  loadImage = canvasLib.loadImage;
+} catch (e) {
+  console.warn('[QR TEMPLATE] canvas module not available, will fallback to simple QR generation');
+}
 const fs = require('fs');
 const path = require('path');
 const { logoToBase64 } = require('./logoConverter');
@@ -14,6 +23,24 @@ const { getUploadsAbsPath } = require('./paths');
  */
 async function generateQRTemplate(data, participant, outputPath) {
   try {
+    // Fallback: if canvas isn't available, generate a simple QR PNG and save to outputPath
+    if (!createCanvas || !loadImage) {
+      const pngDataUrl = await QRCode.toDataURL(data, {
+        width: 640,
+        margin: 2,
+        color: { dark: '#000000', light: '#FFFFFF' },
+        errorCorrectionLevel: 'M'
+      });
+      const base64 = pngDataUrl.split(',')[1];
+      const buf = Buffer.from(base64, 'base64');
+      const fs = require('fs');
+      const path = require('path');
+      const dir = path.dirname(outputPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(outputPath, buf);
+      console.log(`✅ Simple QR generated (fallback): ${outputPath}`);
+      return outputPath;
+    }
     // Canvas dimensions (optimized for mobile viewing and printing)
     const canvasWidth = 800;
     // Extra vertical space to avoid cropping

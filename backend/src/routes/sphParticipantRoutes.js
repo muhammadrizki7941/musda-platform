@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { logoToBase64 } = require('../utils/logoConverter');
 const { sendETicketEmail, sendAdminNewRegistrationEmail } = require('../utils/emailTemplates');
+const { sendEmailUnified } = require('../utils/emailProvider');
 const { generateQRTemplate } = require('../utils/qrTemplateGenerator');
 const { getUploadsAbsPath, getUploadsPublicPath } = require('../utils/paths');
 
@@ -573,5 +574,51 @@ router.get('/:id/download-ticket', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error generating/downloading PDF ticket:', error);
     res.status(500).json({ success: false, message: 'Error generating/downloading PDF ticket' });
+  }
+});
+
+// Send lightweight e-ticket email (no attachments) to test latency/timeouts
+router.post('/:id/send-ticket-lite', authMiddleware, async (req, res) => {
+  try {
+    const participantId = req.params.id;
+    const participant = await SPHParticipantModel.getParticipantById(participantId);
+    if (!participant) {
+      return res.status(404).json({ success: false, message: 'Participant not found' });
+    }
+    if (participant.payment_status !== 'paid') {
+      return res.status(400).json({ success: false, message: 'Payment is not confirmed yet' });
+    }
+
+    const baseUrl = process.env.API_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const dlQR = `${baseUrl}/api/sph-participants/${participantId}/download-qr-template`;
+    const dlPDF = `${baseUrl}/api/sph-participants/${participantId}/download-ticket`;
+
+    const subject = `E-Ticket SPH 2025 (Lite) - ${participant.full_name || participant.nama || 'Peserta'}`;
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #eee;border-radius:10px;padding:16px">
+        <h3 style="margin:0 0 10px 0;color:#333">E-Ticket SPH 2025 (Lite)</h3>
+        <p style="margin:0 0 10px 0;color:#444">Halo <b>${participant.full_name || participant.nama || 'Peserta'}</b>,</p>
+        <p style="margin:0 0 10px 0;color:#444">Ini email uji kirim tanpa lampiran untuk memastikan pengiriman tidak timeout.</p>
+        <ul style="margin:8px 0 12px 18px;color:#444">
+          <li>Unduh QR Template: <a href="${dlQR}" target="_blank" rel="noopener">${dlQR}</a></li>
+          <li>Unduh E-Ticket PDF: <a href="${dlPDF}" target="_blank" rel="noopener">${dlPDF}</a></li>
+        </ul>
+        <p style="margin:0;color:#666;font-size:12px">Jika tautan tidak bisa diklik, salin dan tempel ke browser Anda.</p>
+      </div>
+    `;
+
+    const start = Date.now();
+    const result = await sendEmailUnified({
+      from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: participant.email,
+      subject,
+      html
+    });
+    const ms = Date.now() - start;
+    console.log(`[EMAIL][LITE] Sent to ${participant.email} via ${result.provider} in ${ms}ms`);
+    return res.json({ success: true, provider: result.provider, elapsedMs: ms });
+  } catch (error) {
+    console.error('Error sending lite ticket email:', error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 });

@@ -208,9 +208,12 @@ function extractPath(regexp) {
   return '';
 }
 
-// Static file serving for uploaded assets from project root (/uploads)
+// Static file serving for uploaded assets from project root or /tmp on Vercel
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads'), {
+const { UPLOADS_ABS_ROOT } = require('./utils/paths');
+const fs = require('fs');
+try { fs.mkdirSync(UPLOADS_ABS_ROOT, { recursive: true }); } catch(_) {}
+app.use('/uploads', express.static(UPLOADS_ABS_ROOT, {
   setHeaders: (res, filePath)=>{
     if (/\.(png|jpe?g|webp|gif|svg)$/i.test(filePath)) {
       res.setHeader('Cache-Control','public, max-age=604800, immutable'); // 7 days
