@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test New Admin APIs</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .test-container { max-width: 1200px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .result { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .error { background: #ffe6e6; color: #d32f2f; border-left: 4px solid #d32f2f; }
+        .success { background: #e8f5e8; color: #2e7d32; border-left: 4px solid #2e7d32; }
+        .warning { background: #fff3e0; color: #f57c00; border-left: 4px solid #f57c00; }
+        button { padding: 12px 20px; margin: 8px; cursor: pointer; border: none; border-radius: 4px; background: #1976d2; color: white; }
+        button:hover { background: #1565c0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-weight: bold; }
+        h1 { color: #1976d2; text-align: center; }
+        h3 { color: #424242; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px; }
+        .endpoint { background: #e3f2fd; padding: 8px 12px; border-radius: 4px; margin: 5px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test New Admin Dashboard APIs</h1>
+        <div class="status" id="server-status">Checking server status...</div>
+        
+        <div class="test-section">
+            <h3>🛠️ System Settings API</h3>
+            <div class="endpoint">GET /api/system/settings</div>
+            <div class="endpoint">PUT /api/system/settings</div>
+            <div class="endpoint">GET /api/system/info</div>
+            <button onclick="testSystemSettings()">Test System Settings</button>
+            <button onclick="testSystemInfo()">Test System Info</button>
+            <div id="system-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📄 Content Management API</h3>
+            <div class="endpoint">GET /api/content</div>
+            <div class="endpoint">POST /api/content</div>
+            <button onclick="testContentGet()">Test Get Content</button>
+            <button onclick="testContentCreate()">Test Create Content</button>
+            <div id="content-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Reports API</h3>
+            <div class="endpoint">GET /api/reports/stats</div>
+            <div class="endpoint">GET /api/reports/detailed</div>
+            <button onclick="testReportsStats()">Test Statistics</button>
+            <button onclick="testReportsDetailed()">Test Detailed Reports</button>
+            <div id="reports-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>👤 Profile API</h3>
+            <div class="endpoint">GET /api/profile</div>
+            <div class="endpoint">PUT /api/profile</div>
+            <button onclick="testProfileGet()">Test Get Profile</button>
+            <div id="profile-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Existing APIs Verification</h3>
+            <div class="endpoint">GET /api/agendas</div>
+            <div class="endpoint">GET /api/sph-settings</div>
+            <button onclick="testExistingAPIs()">Test Existing APIs</button>
+            <div id="existing-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001';
+
+        // Check server status
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const statusEl = document.getElementById('server-status');
+                if (response.ok) {
+                    statusEl.innerHTML = '✅ Backend server is running on localhost:3001';
+                    statusEl.className = 'status success';
+                } else {
+                    statusEl.innerHTML = '⚠️ Server responding but health check failed';
+                    statusEl.className = 'status warning';
+                }
+            } catch (error) {
+                const statusEl = document.getElementById('server-status');
+                statusEl.innerHTML = '❌ Backend server is not running or not accessible';
+                statusEl.className = 'status error';
+            }
+        }
+
+        async function testAPI(endpoint, options = {}, resultId) {
+            const resultEl = document.getElementById(resultId);
+            resultEl.innerHTML = '🔄 Testing...';
+            resultEl.className = 'result';
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultEl.innerHTML = `✅ ${endpoint}<br><strong>Status:</strong> ${response.status}<br><strong>Response:</strong><br>${JSON.stringify(data, null, 2)}`;
+                    resultEl.className = 'result success';
+                } else {
+                    resultEl.innerHTML = `❌ ${endpoint}<br><strong>Status:</strong> ${response.status}<br><strong>Error:</strong><br>${JSON.stringify(data, null, 2)}`;
+                    resultEl.className = 'result error';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `❌ Network Error for ${endpoint}<br><strong>Error:</strong> ${error.message}`;
+                resultEl.className = 'result error';
+            }
+        }
+
+        function testSystemSettings() {
+            testAPI('/api/system/settings', {}, 'system-result');
+        }
+
+        function testSystemInfo() {
+            testAPI('/api/system/info', {}, 'system-result');
+        }
+
+        function testContentGet() {
+            testAPI('/api/content', {}, 'content-result');
+        }
+
+        function testContentCreate() {
+            const options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Note: In real app, would include auth token
+                },
+                body: JSON.stringify({
+                    title: 'Test Content',
+                    slug: 'test-content-' + Date.now(),
+                    content: '<p>This is test content created by API test</p>',
+                    status: 'draft',
+                    type: 'post'
+                })
+            };
+            testAPI('/api/content', options, 'content-result');
+        }
+
+        function testReportsStats() {
+            testAPI('/api/reports/stats', {}, 'reports-result');
+        }
+
+        function testReportsDetailed() {
+            testAPI('/api/reports/detailed', {}, 'reports-result');
+        }
+
+        function testProfileGet() {
+            testAPI('/api/profile', {}, 'profile-result');
+        }
+
+        function testExistingAPIs() {
+            // Test multiple endpoints
+            const tests = [
+                testAPI('/api/agendas', {}, 'existing-result'),
+                testAPI('/api/sph-settings', {}, 'existing-result'),
+                testAPI('/api/sponsors', {}, 'existing-result')
+            ];
+            
+            Promise.all(tests).then(() => {
+                document.getElementById('existing-result').innerHTML += '<br><strong>All existing API tests completed</strong>';
+            });
+        }
+
+        // Check server status on load
+        checkServerStatus();
+    </script>
+</body>
+</html>

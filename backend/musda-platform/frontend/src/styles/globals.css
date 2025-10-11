@@ -1,0 +1,190 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: #232323;
+  --card: #ffffff;
+  --card-foreground: #232323;
+  --popover: #ffffff;
+  --popover-foreground: #232323;
+  --primary: #030213;
+  --primary-foreground: #ffffff;
+  --secondary: #e5e5e5;
+  --secondary-foreground: #030213;
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+  --accent: #e9ebef;
+  --accent-foreground: #030213;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #cccccc;
+  --chart-1: #fbbf24;
+  --chart-2: #60a5fa;
+  --chart-3: #818cf8;
+  --chart-4: #34d399;
+  --chart-5: #f472b6;
+  --radius: 0.625rem;
+  --sidebar: #f3f3f5;
+  --sidebar-foreground: #232323;
+  --sidebar-primary: #030213;
+  --sidebar-primary-foreground: #f3f3f5;
+  --sidebar-accent: #e9ebef;
+  --sidebar-accent-foreground: #717182;
+  --sidebar-border: #cccccc;
+  --sidebar-ring: #cccccc;
+}
+
+.dark {
+  --background: #232323;
+  --foreground: #f3f3f5;
+  --card: #232323;
+  --card-foreground: #f3f3f5;
+  --popover: #232323;
+  --popover-foreground: #f3f3f5;
+  --primary: #232323;
+  --primary-foreground: #cccccc;
+  --secondary: #444444;
+  --secondary-foreground: #f3f3f5;
+  --muted: #444444;
+  --muted-foreground: #cccccc;
+  --accent: #444444;
+  --accent-foreground: #f3f3f5;
+  --destructive: #d4183d;
+  --destructive-foreground: #fbbf24;
+  --border: #444444;
+  --input: #444444;
+  --primary: #232323;
+  --primary-foreground: #cccccc;
+  --secondary: #444444;
+  --secondary-foreground: #f3f3f5;
+  --muted: #444444;
+  --muted-foreground: #cccccc;
+  --accent: #444444;
+  --accent-foreground: #f3f3f5;
+  --destructive: #d4183d;
+  --destructive-foreground: #fbbf24;
+  --border: #444444;
+  --input: #444444;
+  --ring: #cccccc;
+  --chart-1: #fbbf24;
+  --chart-2: #60a5fa;
+  --chart-3: #818cf8;
+  --chart-4: #34d399;
+  --chart-5: #f472b6;
+  --sidebar: #232323;
+  --sidebar-foreground: #f3f3f5;
+  --sidebar-primary: #fbbf24;
+  --sidebar-primary-foreground: #f3f3f5;
+    --primary: #232323;
+    --primary-foreground: #cccccc;
+    --secondary: #444444;
+    --secondary-foreground: #f3f3f5;
+    --muted: #444444;
+    --muted-foreground: #cccccc;
+    --accent: #444444;
+    --accent-foreground: #f3f3f5;
+    --destructive: #d4183d;
+    --destructive-foreground: #fbbf24;
+    --border: #444444;
+    --input: #444444;
+    --ring: #cccccc;
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}

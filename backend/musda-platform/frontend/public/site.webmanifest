@@ -1,0 +1,12 @@
+{
+  "name": "MUSDA HIMPERA Lampung",
+  "short_name": "MUSDA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1c",
+  "theme_color": "#0a0f1c",
+  "icons": [
+    { "src": "/favicon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/favicon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

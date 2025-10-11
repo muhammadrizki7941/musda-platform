@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Himperra Lampung</title>
+    <!-- Primary Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!-- PNG Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png" />
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Manifest -->
+    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Theming -->
+    <meta name="theme-color" content="#0a0f1c" />
+    <!-- Optional Preload (small icon) -->
+    <link rel="preload" as="image" href="/favicon-192.png" />
+  </head>
+
+  <body class="bg-gray-900 text-gray-100">
+    <div id="root"></div>
+    <script>
+      // Build marker (increment when changing fallback logic)
+      window.__BUILD_API_MARK__ = 'api-fallback-v2';
+      // Early inline fallback: ensure __API_BASE__ exists BEFORE module graph executes
+      (function(){
+        try {
+          if(!window.__API_BASE__ && location.hostname.includes('netlify.app')) {
+            window.__API_BASE__ = 'https://himperra2-production.up.railway.app';
+            console.warn('[INLINE][API] Applied inline fallback __API_BASE__ (v2)');
+          }
+          // Expose debug inspector
+          window.__debugApi = function(){
+            return {
+              buildMark: window.__BUILD_API_MARK__,
+              inlineBase: window.__API_BASE__,
+              lsOverride: localStorage.getItem('API_BASE_OVERRIDE'),
+              location: location.href,
+              scripts: Array.from(document.scripts).map(s => s.src || '[inline]')
+            };
+          };
+        } catch(e) { console.warn('[INLINE][API] Fallback error', e); }
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Safeguard: ensure dark class persists if stripped by HMR
+      (function(){
+        var doc=document.documentElement; if(!doc.classList.contains('dark')){doc.classList.add('dark');}
+      })();
+    </script>
+  </body>
+</html>
+  
