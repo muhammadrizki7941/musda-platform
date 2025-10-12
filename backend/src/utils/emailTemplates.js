@@ -1,6 +1,50 @@
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const { sphLogoToBase64 } = require('./logoConverter');
+const { sendEmailUnified } = require('./emailProvider');
+
+function resolveBaseUrl() {
+  // Prefer explicit API base
+  const envUrl = process.env.API_BASE_URL
+    || process.env.BACKEND_BASE_URL
+    || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '')
+    || '';
+  return envUrl.replace(/\/$/, '');
+}
+
+async function sendSimpleTicketEmail(participant, options = {}) {
+  const baseUrl = resolveBaseUrl();
+  const dlQR = baseUrl ? `${baseUrl}/api/sph-participants/${participant.id}/download-qr-template` : null;
+  const dlPDF = baseUrl ? `${baseUrl}/api/sph-participants/${participant.id}/download-ticket` : null;
+  const reason = options.reason ? `<p style="color:#999;font-size:12px">(Fallback otomatis: ${options.reason})</p>` : '';
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #eee;border-radius:10px;padding:16px">
+      <h3 style="margin:0 0 10px 0;color:#333">E-Ticket SPH 2025</h3>
+      <p style="margin:0 0 10px 0;color:#444">Halo <b>${participant.full_name || participant.nama || 'Peserta'}</b>,</p>
+      <p style="margin:0 10px 10px 0;color:#444">Ini versi ringan tanpa lampiran agar pengiriman cepat.</p>
+      ${baseUrl ? (
+        `<ul style="margin:8px 0 12px 18px;color:#444">
+          <li>Unduh QR Template: <a href="${dlQR}" target="_blank" rel="noopener">${dlQR}</a></li>
+          <li>Unduh E-Ticket PDF: <a href="${dlPDF}" target="_blank" rel="noopener">${dlPDF}</a></li>
+        </ul>`
+      ) : (
+        `<p style="color:#444">Kode Pembayaran: <b>${participant.payment_code || participant.paymentCode || '-'}</b></p>
+         <p style="color:#666;font-size:12px">Admin akan mengirim tautan unduh secara terpisah.</p>`
+      )}
+      ${reason}
+    </div>
+  `;
+  const result = await sendEmailUnified({
+    from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: participant.email,
+    subject: `E-Ticket SPH 2025 - ${participant.full_name || participant.nama || 'Peserta'}`,
+    html
+  });
+  if (process.env.DEBUG_EMAIL === '1') {
+    console.log('[EMAIL][FALLBACK-LITE] Sent via %s to %s', result.provider, participant.email);
+  }
+  return { success: true, provider: result.provider, mode: 'lite' };
+}
 
 // Email transporter configuration
 let transporter = null;
@@ -36,11 +80,8 @@ async function sendETicketEmail(participant, qrCodePath) {
     }
 
     if (!transporter) {
-      console.log('📧 No email transporter configured');
-      return {
-        success: false,
-        message: 'Email transporter not configured'
-      };
+      console.log('📧 No email transporter configured. Falling back to simple email (no attachment).');
+      return await sendSimpleTicketEmail(participant, { reason: 'transporter tidak tersedia' });
     }
 
     console.log('📧 Sending e-ticket email to:', participant.email);
@@ -148,7 +189,12 @@ async function sendETicketEmail(participant, qrCodePath) {
       ]
     };
 
-    await transporter.sendMail(mailOptions);
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (primaryErr) {
+      console.error('❌ Fancy e-ticket email failed, sending simple fallback:', primaryErr.message);
+      return await sendSimpleTicketEmail(participant, { reason: primaryErr.message });
+    }
     
     // Clean up temporary QR code files
     try {
@@ -165,7 +211,13 @@ async function sendETicketEmail(participant, qrCodePath) {
     
   } catch (error) {
     console.error('❌ Error sending e-ticket email:', error);
-    throw error;
+    // Final safety: try simple fallback once more
+    try {
+      return await sendSimpleTicketEmail(participant, { reason: error.message });
+    } catch (fallbackErr) {
+      console.error('❌ Fallback simple email also failed:', fallbackErr);
+      throw error;
+    }
   }
 }
 
