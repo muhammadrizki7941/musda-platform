@@ -229,7 +229,6 @@ async function sendETicketEmail(participant, qrCodePath) {
 
 module.exports = { sendETicketEmail };
 // --- Admin notification email for new registrations ---
-const { sendEmailUnified } = require('./emailProvider');
 async function sendAdminNewRegistrationEmail(participant) {
   try {
     // Dev mode short-circuit
