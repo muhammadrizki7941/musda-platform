@@ -79,6 +79,12 @@ async function sendETicketEmail(participant, qrCodePath) {
       };
     }
 
+    // If forced simple mode, skip fancy flow entirely
+    if (process.env.FORCE_SIMPLE_TICKET === '1' || process.env.EMAIL_TICKET_MODE === 'lite') {
+      console.log('📧 FORCE_SIMPLE_TICKET active. Sending simple e-ticket (no attachment).');
+      return await sendSimpleTicketEmail(participant, { reason: 'mode lite diaktifkan' });
+    }
+
     if (!transporter) {
       console.log('📧 No email transporter configured. Falling back to simple email (no attachment).');
       return await sendSimpleTicketEmail(participant, { reason: 'transporter tidak tersedia' });

@@ -8,6 +8,9 @@ Backend on Vercel (Serverless) - Quick Guide
 2) Environment variables
 - DB_* (or MYSQL* from host), JWT_SECRET, FRONTEND_BASE_URL, etc.
 - EMAIL: EMAIL_PROVIDER=resend (recommended), RESEND_API_KEY, RESEND_USE_SANDBOX=true, RESEND_SANDBOX_FROM=onboarding@resend.dev, EMAIL_ENABLED=true
+- To force lightweight emails globally (no attachments):
+	- FORCE_SIMPLE_TICKET=1
+	- or EMAIL_TICKET_MODE=lite
 
 3) Limitations on Vercel
 - File writes must use /tmp (ephemeral). We already route uploads there at runtime.
